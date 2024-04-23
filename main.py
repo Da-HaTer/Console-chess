@@ -1,5 +1,5 @@
 from board import Board
-from draw import Draw_board
+from draw import Display
 from time import time
 from 
 class ChessGame:
@@ -26,7 +26,7 @@ class ChessGame:
 
     def render_game(self):
         ## Render the game here
-        Draw_board(self.board.board_position)
+        Display(self.board.board_position)
 
     def game_loop(self):
         # Game loop

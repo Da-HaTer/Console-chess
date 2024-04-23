@@ -1,10 +1,26 @@
+class InvalidMoveError(Exception):
+    def __init__(self, message, errors=None):            
+        # Call the base class constructor with the parameters it needs
+        print("Invalid move Syntax :",message)
+        super().__init__(message)
+        # Now for your custom code...
+        self.errors = errors
+        
+class IllegalMoveError(Exception):
+    def __init__(self, message, errors=None):            
+        # Call the base class constructor with the parameters it needs
+        print("Illegal Move: ", message)
+        super().__init__(message)
+        # Now for your custom code...
+        self.errors = errors
+
 class Logic:
     def __init__(self, ):
         pass
     def valid_move(self,position, move):
         pass
 
-    def valid_syntax(self,move):
+    def valid_move_syntax(self,move):
         # room for improvement
         print(move,end=' ')
         move=move.removesuffix('+').removesuffix('#') #remove suffixes for now
@@ -40,29 +56,31 @@ class Logic:
             elif len(move[0])==5 and move[0][0] in "QBK" and square(move[0][1:3]) and square(move[0][-2:]):
                 return True
         return False
-    
-    def check(self,position,turn):
+    def valid_square(self,position):
+        #if not pinned or not in check or not capturing ally piece or not moving into check
         pass
-
+    
 if __name__ == "__main__":
     # Creating an instance of the class
     logic = Logic()
-    print(logic.valid_syntax('e4'))
-    print(logic.valid_syntax('O-O')) 
-    print(logic.valid_syntax('O-O+')) 
-    print(logic.valid_syntax('O-O#')) 
-    print(logic.valid_syntax('Nf3')) 
-    print(logic.valid_syntax('Ngf3'))
-    print(logic.valid_syntax('N2f3'))
-    print(logic.valid_syntax('Ngxf3'))  
-    print(logic.valid_syntax('Nxf3'))  
-    print(logic.valid_syntax('R3d3'))  
-    print(logic.valid_syntax('e1=Q'))  
-    print(logic.valid_syntax('e1=Q+'))  
-    print(logic.valid_syntax('e1=Q#'))  
-    print(logic.valid_syntax('Rdxf3'))  
-    print(logic.valid_syntax('fxe1=Q+'))  
-    print(logic.valid_syntax('Qe4f5+'))
-    print(logic.valid_syntax('Qe4xf5+'))
+    print(logic.valid_move_syntax('e4'))
+    print(logic.valid_move_syntax('O-O')) 
+    print(logic.valid_move_syntax('O-O+')) 
+    print(logic.valid_move_syntax('O-O#')) 
+    print(logic.valid_move_syntax('Nf3')) 
+    print(logic.valid_move_syntax('Ngf3'))
+    print(logic.valid_move_syntax('N2f3'))
+    print(logic.valid_move_syntax('Ngxf3'))  
+    print(logic.valid_move_syntax('Nxf3'))  
+    print(logic.valid_move_syntax('R3d3'))  
+    print(logic.valid_move_syntax('e1=Q'))  
+    print(logic.valid_move_syntax('e1=Q+'))  
+    print(logic.valid_move_syntax('e1=Q#'))  
+    print(logic.valid_move_syntax('Rdxf3'))  
+    print(logic.valid_move_syntax('fxe1=Q+'))  
+    print(logic.valid_move_syntax('Qe4f5+'))
+    print(logic.valid_move_syntax('Qe4xf5+'))
+    print(logic.valid_move_syntax('e1'))# False
+    print(logic.valid_move_syntax('e8'))# False
 
     

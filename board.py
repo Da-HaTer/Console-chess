@@ -18,7 +18,7 @@ class Board:
         self.board_position = board
 
     def randomize_board_dirty(self):
-        #dirty randomization (no checks for valid positions or if the king is in check)
+        #dirty randomization (no checks for valid or legal positions)
         arr=self.board_position
         arr = arr.flatten()
         np.random.shuffle(arr)
@@ -67,25 +67,6 @@ class Board:
                 continue
             moves.append(i)
         return moves
-
-    def pawn_move(self,board,move,turn): ## move to game/piece module	
-        pawns=['a','b','c','d','e','f','g','h']
-        if move[0].low() in pawns:
-            if turn==0:
-                board[8-int(move[1]),pawns.index(move[0])]='P'
-            else:
-                board[8-int(move[1]),pawns.index(move[0])]='p'    
-
-    def move_pawn(self,board,coordinate): ## move to game/piece module
-        l,c=coordinate
-        if l==1:
-            board[l,c]=''
-            board[l+2,c]='P'
-        else:
-            board[l,c]=''
-            board[l-2,c]='p'
-        return board
-
 if __name__=='__main__':
 
     board=Board()
