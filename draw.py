@@ -72,9 +72,9 @@ class Display:
             for j in range(c):
                 if matrix[i,j]=='':
                     if (i+j)%2==0:
-                        print(self.colored("⬜"),end='|')
+                        print("  ",end='|')
                     else:
-                        print("⬜",end='|')
+                        print("  ",end='|')
                 else:
                     print(d[matrix[i,j]],end='|')
             print()
