@@ -1,5 +1,6 @@
 from time import sleep
 from os import system
+import numpy as np
 
 class Display:
     

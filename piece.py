@@ -1,19 +1,20 @@
 import numpy as np
-
+import regex as re
 from time import sleep
 from logic import Logic
 from logic import IllegalMoveError, InvalidMoveError
 from draw import Display
 class ChessPiece:
-    def __init__(self,color,position,type="p"):
+    def __init__(self,color,position,type="p",enpassant=False):
         self.color = color
         #color= w, b
         self.type=type
+        self.enpassant=enpassant ###temporary to be added to returned position (create new class)
         #types= p, r, n, b, q, k
         self.position = position
         #specific board position (np array)
            
-    def move_pawn(self, white, position, move): #return position
+    def pawn_move(self, white, position, move): #return position
         new_pos=position.copy()
         if len(move) == 2: # simple pawn move: e4, d4, e5, d5
             j = ord(move[0]) - ord('a') #col
@@ -40,8 +41,101 @@ class ChessPiece:
                     new_pos[i-2, j] = ''
                 else:
                     raise IllegalMoveError(move)
+        elif re.match(r'[a-h][x][a-h][1-7]', move):# pawn capture move: exd4, dxe4, exd4, dxe4
+            j1 = ord(move[0]) - ord('a')
+            j2 = ord(move[2]) - ord('a')
+            i = 8 - int(move[3])
+            if abs(j1-j2) != 1: #not diagonally capturing ### add custom en passant
+                raise IllegalMoveError(move)
+            print(i,j1,j2)
+            if white:
+                if new_pos[i, j2] in 'PRNBQK' and new_pos[i+1, j1] == 'p':
+                    new_pos[i, j2] = 'p'
+                    new_pos[i+1, j1] = ''
+            else:
+                if new_pos[i, j2] in 'prnbqk' and new_pos[i-1, j1] == 'P':
+                    new_pos[i, j2] = 'P'
+                    new_pos[i-1, j1] = ''
+                else:
+                    raise IllegalMoveError(move)
+        elif re.match(r'[a-h][x][a-h][18][=][QRBN]', move, re.IGNORECASE): # pawn promotion move: exd8=Q, dxe1=N
+            j1 = ord(move[0]) - ord('a')
+            j2 = ord(move[2]) - ord('a')
+            i = 8 - int(move[3])
+            if abs(j1-j2) != 1:
+                raise IllegalMoveError(move)
+            if white:
+                if new_pos[i, j2] in 'PRNBQK' and new_pos[i+1, j1] == 'p':
+                    new_pos[i, j2] = move[5].lower()
+                    new_pos[i+1, j1] = ''
+                else:
+                    raise IllegalMoveError(move)
+            else:
+                if new_pos[i, j2] in 'prnbqk' and new_pos[i-1, j1] == 'P':
+                    new_pos[i, j2] = move[5].upper()
+                    new_pos[i-1, j1] = ''
+                else:
+                    raise IllegalMoveError(move)
+        elif re.match(r'[a-h][18][=][QRBN]', move, re.IGNORECASE): # pawn promotion move: e8=Q, e1=N
+            j = ord(move[0]) - ord('a')
+            i = 8 - int(move[1])
+            if white:
+                if new_pos[i, j] == '' and new_pos[i+1, j] == 'p':
+                    new_pos[i, j] = move[3].lower()
+                    new_pos[i+1, j] = ''
+                else:
+                    raise IllegalMoveError(move)
+            else:
+                if new_pos[i, j] == '' and new_pos[i-1, j] == 'P':
+                    new_pos[i, j] = move[3].upper()
+                    new_pos[i-1, j]= ''
+                else:
+                    raise IllegalMoveError(move)
+        ### add en passant
+        else:
+            raise IllegalMoveError(move)
+        
         return new_pos
 
+    def knight_move(self, white, position, move):
+        knight=[(2,1),(2,-1),(-2,1),(-2,-1),(1,2),(1,-2),(-1,2),(-1,-2)]
+        
+        def get_knight(pos,i,j,symbol,moves=knight):
+            found=0
+            for move in moves:
+                if 0<=i+move[0]<8 and 0<=j+move[1]<8 and pos[i+move[0],j+move[1]]==symbol:
+                    found+=1
+                    coords=(i+move[0],j+move[1])
+                    if found==2:
+                        return None
+            if found==1:
+                return coords
+            return None
+        
+        new_pos=position.copy() #make sure to return a copy of the board and not changin the original
+        if re.match(r'[N][a-h][1-8]', move,re.IGNORECASE): #simple knight move: Nf3, Nf6, Nh3, Nh6
+            i=8-int(move[2])
+            j=ord(move[1])-ord('a')
+            if white:
+                if new_pos[i,j]=='' or new_pos[i,j] in 'PRNBQK':
+                    if get_knight(new_pos,i,j,'n'):
+                        i0,j0=get_knight(new_pos,i,j,'n')
+                        new_pos[i,j]='n'
+                        new_pos[i0,j0]=''
+                else:
+                    raise IllegalMoveError(move)
+            else:
+                if new_pos[i,j]=='' or new_pos[i,j] in 'prnbqk':
+                    if get_knight(new_pos,i,j,'N'):
+                        i0,j0=get_knight(new_pos,i,j,'N')
+                        new_pos[i,j]='N'
+                        new_pos[i0,j0]=''
+                else:
+                    raise IllegalMoveError(move)
+        else:
+            raise IllegalMoveError(move)
+        return new_pos
+        
     def capture(self, position):
         # Implement the logic for capturing an opponent's piece
         pass
@@ -52,32 +146,40 @@ class ChessPiece:
 
 if __name__=="__main__":
     start_board= np.array([
-        ['R','N','B','Q','K','B','N','R'],
-        ['P','P','P','P','P','P','P','P'],
+        ['R','N','B','Q','K','B','','R'],
+        ['','P','P','P','P','P','P','P'],
+        ['','','','','','p','',''],
         ['','','','','','','',''],
+        ['P','','','','','','',''],
         ['','','','','','','',''],
-        ['','','','','','','',''],
-        ['','','','','','','',''],
-        ['p','p','p','p','p','p','p','p'],
+        ['p','p','p','p','p','','p','p'],
         ['r','n','b','q','k','b','n','r']
     ])
-pos=start_board
+old_pos=start_board
+pos=np.copy(old_pos)
 white=True
 while True:
     board=Display(pos)
-    move=input("Enter move: ")
+    print(f'{"white" if white else board.colored("black")} to play')
+    move=input("Enter move: \n")
     if move=="q":
         break
-    
+    elif move=="back":
+        pos=old_pos
+        white=not white
+        continue
     piece=ChessPiece('w',start_board)
     try:
-        position=piece.move_pawn(white,pos,move)
+        position=piece.knight_move(white,pos,move)
         board=Display(position)
+        old_pos=np.copy(pos)
         pos=position
         white=not white
-    except Exception as e:
-        print(e)
-        input("press any key to continue...")
+    finally:
+        pass
+    # except Exception as e:
+    #     print(e)
+    #     input("press any key to continue...")
 
     
 
