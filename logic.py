@@ -13,7 +13,13 @@ class IllegalMoveError(Exception):
         super().__init__(message)
         # Now for your custom code...
         self.errors = errors
-
+class ambigousMoveError(Exception):
+    def __init__(self, message, errors=None):            
+        # Call the base class constructor with the parameters it needs
+        print("Ambigous Move: ", message)
+        super().__init__(message)
+        # Now for your custom code...
+        self.errors = errors
 class Logic:
     def __init__(self, ):
         pass

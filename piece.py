@@ -2,8 +2,9 @@ import numpy as np
 import regex as re
 from time import sleep
 from logic import Logic
-from logic import IllegalMoveError, InvalidMoveError
+from logic import IllegalMoveError, InvalidMoveError, ambigousMoveError
 from draw import Display
+import traceback
 class ChessPiece:
     def __init__(self,color,position,type="p",enpassant=False):
         self.color = color
@@ -100,24 +101,58 @@ class ChessPiece:
     def knight_move(self, white, position, move):
         knight=[(2,1),(2,-1),(-2,1),(-2,-1),(1,2),(1,-2),(-1,2),(-1,-2)]
         
-        def get_knight(pos,i,j,symbol,moves=knight):
+        def get_knight(pos,i,j,symbol,ambiguous='',moves=knight):
             found=0
             for move in moves:
-                if 0<=i+move[0]<8 and 0<=j+move[1]<8 and pos[i+move[0],j+move[1]]==symbol:
-                    found+=1
-                    coords=(i+move[0],j+move[1])
-                    if found==2:
-                        return None
+                if 0<=i+move[0]<8 and 0<=j+move[1]<8 and pos[i+move[0],j+move[1]]==symbol: #if knight is found
+                    if ambiguous:
+                        if ambiguous in 'abcdefgh':
+                            if chr(j+move[1]+97)==ambiguous: # if column is specified
+                                coords=(i+move[0],j+move[1])
+                                found+=1
+                                print("flag1",coords)
+                        elif ambiguous in '12345678': # if row is specified
+                            if 8-(i+move[0])==int(ambiguous):
+                                coords=(i+move[0],j+move[1])
+                                found+=1
+                                print("flag2",coords)
+                    else:
+                        found+=1
+                        coords=(i+move[0],j+move[1])
+                        print("flag3",coords)
+                    if found==2: #ambiguous move without specifying row or column
+                        raise ambigousMoveError(move)
             if found==1:
                 return coords
-            return None
+            raise IllegalMoveError(move)
         
         new_pos=position.copy() #make sure to return a copy of the board and not changin the original
-        if re.match(r'[N][a-h][1-8]', move,re.IGNORECASE): #simple knight move: Nf3, Nf6, Nh3, Nh6
+        if re.match(r'[n][a-h][1-8]', move,re.IGNORECASE): #simple knight move: Nf3, Nf6, Nh3, Nh6
             i=8-int(move[2])
             j=ord(move[1])-ord('a')
             if white:
-                if new_pos[i,j]=='' or new_pos[i,j] in 'PRNBQK':
+                if new_pos[i,j]=='':
+                    search=get_knight(new_pos,i,j,'n')
+                    if search:
+                        i0,j0=search
+                        new_pos[i,j]='n'
+                        new_pos[i0,j0]=''
+                else:
+                    raise IllegalMoveError(move)
+            else:
+                if new_pos[i,j]=='':
+                    search=get_knight(new_pos,i,j,'N')
+                    if search:
+                        i0,j0=search
+                        new_pos[i,j]='N'
+                        new_pos[i0,j0]=''
+                else:
+                    raise IllegalMoveError(move)
+        elif re.match(r'[n][x][a-h][1-8]', move,re.IGNORECASE): #knight capture move: Nxf3, Nxf6, Nxh3, Nxh6 
+            i=8-int(move[3])
+            j=ord(move[2])-ord('a')
+            if white:
+                if new_pos[i,j] in 'PRNBQ':
                     if get_knight(new_pos,i,j,'n'):
                         i0,j0=get_knight(new_pos,i,j,'n')
                         new_pos[i,j]='n'
@@ -125,15 +160,59 @@ class ChessPiece:
                 else:
                     raise IllegalMoveError(move)
             else:
-                if new_pos[i,j]=='' or new_pos[i,j] in 'prnbqk':
+                if new_pos[i,j] in 'prnbq':
                     if get_knight(new_pos,i,j,'N'):
                         i0,j0=get_knight(new_pos,i,j,'N')
                         new_pos[i,j]='N'
                         new_pos[i0,j0]=''
                 else:
                     raise IllegalMoveError(move)
+        elif re.match(r'[n][a-h1-8][a-h][1-8]', move,re.IGNORECASE): #ambiguous knight move: N2f3, Nf3, Nf3, Nf3
+            i=8-int(move[3])
+            j=ord(move[2])-ord('a')
+            a=move[1].lower()
+            if white:
+                if new_pos[i,j]=='':
+                    search=get_knight(new_pos,i,j,'n',a)
+                    if search:
+                        i0,j0=search
+                        new_pos[i,j]='n'
+                        new_pos[i0,j0]=''
+                else:
+                    raise IllegalMoveError(move)
+            else:
+                if new_pos[i,j]=='':
+                    search=get_knight(new_pos,i,j,'N',a)
+                    if search:
+                        i0,j0=search
+                        new_pos[i,j]='N'
+                        new_pos[i0,j0]=''
+                else:
+                    raise IllegalMoveError(move)
+        elif re.match(r'[n][a-h1-8][x][a-h][1-8]', move,re.IGNORECASE): #knight capture move: Nfxf3, Nfxf6, N3xh3, N2xh6
+            i=8-int(move[4])
+            j=ord(move[3])-ord('a')
+            a=move[1].lower() #ambiguity specifier
+            if white:
+                if new_pos[i,j] in 'PRNBQ':
+                    search=get_knight(new_pos,i,j,'n',a)
+                    if search:
+                        i0,j0=search
+                        new_pos[i,j]='n'
+                        new_pos[i0,j0]=''
+                else:
+                    raise IllegalMoveError(move)
+            else:
+                if new_pos[i,j] in 'prnbq':
+                    search=get_knight(new_pos,i,j,'N',a)
+                    if search:
+                        i0,j0=search
+                        new_pos[i,j]='N'
+                        new_pos[i0,j0]=''
+                else:
+                    raise IllegalMoveError(move)
         else:
-            raise IllegalMoveError(move)
+            raise InvalidMoveError(move)
         return new_pos
         
     def capture(self, position):
@@ -147,13 +226,13 @@ class ChessPiece:
 if __name__=="__main__":
     start_board= np.array([
         ['R','N','B','Q','K','B','','R'],
-        ['','P','P','P','P','P','P','P'],
-        ['','','','','','p','',''],
+        ['P','P','P','P','P','P','P','P'],
         ['','','','','','','',''],
-        ['P','','','','','','',''],
         ['','','','','','','',''],
-        ['p','p','p','p','p','','p','p'],
-        ['r','n','b','q','k','b','n','r']
+        ['','n','','','','n','',''],
+        ['','','','','','','',''],
+        ['p','p','p','p','p','p','p','p'],
+        ['r','','b','q','k','b','','r']
     ])
 old_pos=start_board
 pos=np.copy(old_pos)
@@ -175,11 +254,12 @@ while True:
         old_pos=np.copy(pos)
         pos=position
         white=not white
-    finally:
-        pass
-    # except Exception as e:
-    #     print(e)
-    #     input("press any key to continue...")
+    # finally:
+    #     pass
+    except Exception as e:
+        print(f"Error: {e}")
+        print(traceback.format_exc())
+        input("press any key to continue...")
 
     
 
