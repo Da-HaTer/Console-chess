@@ -4,19 +4,24 @@ import numpy as np
 
 class Display:
     
-    def __init__(self,board=None,theme="green"):
+    def __init__(self,board=None,theme="green",highlight=None):
         if board is None:
             self.board = np.array(['']*64).reshape(8,8)
         else:
             self.board = board
         self.theme=theme
         self.d = self.piece_to_symbol() #dictionary to convert piece to symbol
-        self.Draw_board()
+        self.highlight=highlight
+        self.Draw_board(board,highlight)
     
     def settheme(self,theme):
         self.theme=theme
         self.d = self.piece_to_symbol() #update the dictionary
-        self.Draw_board()
+        self.Draw_board(self.board,self.highlight)
+    
+    def Highlight(self,position):
+        print("Highlighting",position)
+        self.Draw_board(self.board,position)
 
     def colored(self,text,color=None):
         if color==None:
@@ -44,7 +49,7 @@ class Display:
             return '\033[35m'+text+'\033[0m'
 
     def piece_to_symbol(self):
-        symbols=[self.colored('♔'),self.colored('♕'),self.colored('♖'),self.colored('♗'),self.colored('♘'),self.colored('♙'),
+        symbols=['♔','♕','♖','♗','♘','♙',
                  '♚','♛','♜','♝','♞','♟']
         pieces=['K','Q','R','B','N','P','k','q','r','b','n','p']
         d=dict()
@@ -52,10 +57,7 @@ class Display:
             d[pieces[i]]=symbols[i]+' '
         return d
     
-    def Draw_board(self,matrix=None):
-        # default paramter is attribute
-        print("\033[32m", end="")
-        print("\033[0m", end="")
+    def Draw_board(self,matrix=None,highlight=None):
         if matrix is None:
             matrix = self.board
         d = self.d
@@ -72,12 +74,21 @@ class Display:
             print('|',end='')
             for j in range(c):
                 if matrix[i,j]=='':
-                    if (i+j)%2==0:
+                    if highlight == (i,j):
+                        print(self.colored('⬜',"red"),end='|')
+                    elif (i+j)%2==0:
                         print("  ",end='|')
                     else:
                         print("  ",end='|')
                 else:
-                    print(d[matrix[i,j]],end='|')
+                    if highlight == (i,j):
+                        print(self.colored(d[matrix[i,j][0]],"red"),end='|')
+                    else:
+                        if matrix[i,j] in ('QRBNPK'):
+
+                            print(self.colored(d[matrix[i,j][0]]),end='|')
+                        else: 
+                            print(d[matrix[i,j]],end='|')
             print()
         print('',' ‾‾'*(c))
         
@@ -94,6 +105,9 @@ if __name__ == "__main__":
             ['p','p','p','p','p','p','p','p'],
             ['r','n','b','q','k','b','n','r']
         ])
-    display = Display(board)
+    display = Display(board,"green")
+    sleep(1)
+    display.Highlight((4,4))
+    ### add highlight color to theme preferences
     sleep(3)
     display.settheme("red")

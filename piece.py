@@ -14,7 +14,20 @@ class ChessPiece:
         #types= p, r, n, b, q, k
         self.position = position
         #specific board position (np array)
-           
+    def ambiguity(self,move,specifier,moves):# return one single move given specified ambuity constraints otherwise None
+        unique=[]
+        for mv in moves:
+            if specifier in mv:
+                unique.append(mv)
+            if len(unique)==2: # still ambigious
+                break
+        if len(unique)==0:
+            raise InvalidMoveError(move)
+        elif len(unique)==2:
+            raise ambigousMoveError(move)
+        return unique[0] #return move
+
+
     def pawn_move(self, white, position, move): #return position
         new_pos=position.copy()
         if len(move) == 2: # simple pawn move: e4, d4, e5, d5
@@ -42,13 +55,12 @@ class ChessPiece:
                     new_pos[i-2, j] = ''
                 else:
                     raise IllegalMoveError(move)
-        elif re.match(r'[a-h][x][a-h][1-7]', move):# pawn capture move: exd4, dxe4, exd4, dxe4
+        elif re.fullmatch(r'[a-h][x][a-h][1-7]', move):# pawn capture move: exd4, dxe4, exd4, dxe4
             j1 = ord(move[0]) - ord('a')
             j2 = ord(move[2]) - ord('a')
             i = 8 - int(move[3])
             if abs(j1-j2) != 1: #not diagonally capturing ### add custom en passant
                 raise IllegalMoveError(move)
-            print(i,j1,j2)
             if white:
                 if new_pos[i, j2] in 'PRNBQK' and new_pos[i+1, j1] == 'p':
                     new_pos[i, j2] = 'p'
@@ -59,7 +71,7 @@ class ChessPiece:
                     new_pos[i-1, j1] = ''
                 else:
                     raise IllegalMoveError(move)
-        elif re.match(r'[a-h][x][a-h][18][=][QRBN]', move, re.IGNORECASE): # pawn promotion move: exd8=Q, dxe1=N
+        elif re.fullmatch(r'[a-h][x][a-h][18][=][QRBN]', move, re.IGNORECASE): # pawn promotion move: exd8=Q, dxe1=N
             j1 = ord(move[0]) - ord('a')
             j2 = ord(move[2]) - ord('a')
             i = 8 - int(move[3])
@@ -77,7 +89,7 @@ class ChessPiece:
                     new_pos[i-1, j1] = ''
                 else:
                     raise IllegalMoveError(move)
-        elif re.match(r'[a-h][18][=][QRBN]', move, re.IGNORECASE): # pawn promotion move: e8=Q, e1=N
+        elif re.fullmatch(r'[a-h][18][=][QRBN]', move, re.IGNORECASE): # pawn promotion move: e8=Q, e1=N
             j = ord(move[0]) - ord('a')
             i = 8 - int(move[1])
             if white:
@@ -101,33 +113,35 @@ class ChessPiece:
     def knight_move(self, white, position, move):
         knight_moves=[(2,1),(2,-1),(-2,1),(-2,-1),(1,2),(1,-2),(-1,2),(-1,-2)]
         
-        def get_knight(pos,i,j,symbol,ambiguous='',moves=knight_moves):
+        def get_knight(pos,i,j,symbol,ambiguous='',moves=knight_moves): #knight position search to check if move valid
             found=0
             for move in moves:
                 if 0<=i+move[0]<8 and 0<=j+move[1]<8 and pos[i+move[0],j+move[1]]==symbol: #if knight is found
                     if ambiguous:
-                        if ambiguous in 'abcdefgh':
-                            if chr(j+move[1]+97)==ambiguous: # if column is specified
+                        if len(ambiguous)==1:
+                            if ambiguous in 'abcdefgh':
+                                if chr(j+move[1]+97)==ambiguous: # if column is specified
+                                    coords=(i+move[0],j+move[1])
+                                    found+=1
+                            elif ambiguous in '12345678': # if row is specified
+                                if 8-(i+move[0])==int(ambiguous):
+                                    coords=(i+move[0],j+move[1])
+                                    found+=1
+                        elif len(ambiguous)==2: #if both row and column are specified
+                            if chr(j+move[1]+97)==ambiguous[0] and 8-(i+move[0])==int(ambiguous[1]):
                                 coords=(i+move[0],j+move[1])
                                 found+=1
-                                print("flag1",coords)
-                        elif ambiguous in '12345678': # if row is specified
-                            if 8-(i+move[0])==int(ambiguous):
-                                coords=(i+move[0],j+move[1])
-                                found+=1
-                                print("flag2",coords)
                     else:
                         found+=1
                         coords=(i+move[0],j+move[1])
-                        print("flag3",coords)
-                    if found==2: #ambiguous move without specifying row or column
+                    if found>1: #ambiguous move without specifying row or column
                         raise ambigousMoveError(move)
             if found==1:
                 return coords
             raise IllegalMoveError(move)
         
         new_pos=position.copy() #make sure to return a copy of the board and not changin the original
-        if re.match(r'[n][a-h][1-8]', move,re.IGNORECASE): #simple knight move: Nf3, Nf6, Nh3, Nh6
+        if re.fullmatch(r'[n][a-h][1-8]', move,re.IGNORECASE): #simple knight move: Nf3, Nf6, Nh3, Nh6
             i=8-int(move[2])
             j=ord(move[1])-ord('a')
             if white:
@@ -148,7 +162,7 @@ class ChessPiece:
                         new_pos[i0,j0]=''
                 else:
                     raise IllegalMoveError(move)
-        elif re.match(r'[n][x][a-h][1-8]', move,re.IGNORECASE): #knight capture move: Nxf3, Nxf6, Nxh3, Nxh6 
+        elif re.fullmatch(r'[n][x][a-h][1-8]', move,re.IGNORECASE): #knight capture move: Nxf3, Nxf6, Nxh3, Nxh6 
             i=8-int(move[3])
             j=ord(move[2])-ord('a')
             if white:
@@ -167,7 +181,7 @@ class ChessPiece:
                         new_pos[i0,j0]=''
                 else:
                     raise IllegalMoveError(move)
-        elif re.match(r'[n][a-h1-8][a-h][1-8]', move,re.IGNORECASE): #ambiguous knight move: N2f3, Nf3, Nf3, Nf3
+        elif re.fullmatch(r'[n][a-h1-8][a-h][1-8]', move,re.IGNORECASE): #ambiguous knight move: N2f3, Nf3, Nf3, Nf3
             i=8-int(move[3])
             j=ord(move[2])-ord('a')
             a=move[1].lower()
@@ -189,7 +203,7 @@ class ChessPiece:
                         new_pos[i0,j0]=''
                 else:
                     raise IllegalMoveError(move)
-        elif re.match(r'[n][a-h1-8][x][a-h][1-8]', move,re.IGNORECASE): #knight capture move: Nfxf3, Nfxf6, N3xh3, N2xh6
+        elif re.fullmatch(r'[n][a-h1-8][x][a-h][1-8]', move,re.IGNORECASE): #knight capture move: Nfxf3, Nfxf6, N3xh3, N2xh6
             i=8-int(move[4])
             j=ord(move[3])-ord('a')
             a=move[1].lower() #ambiguity specifier
@@ -205,6 +219,29 @@ class ChessPiece:
             else:
                 if new_pos[i,j] in 'prnbq':
                     search=get_knight(new_pos,i,j,'N',a)
+                    if search:
+                        i0,j0=search
+                        new_pos[i,j]='N'
+                        new_pos[i0,j0]=''
+                else:
+                    raise IllegalMoveError(move)
+        elif re.fullmatch(r'[n][a-h][1-8][x][a-h][1-8]', move,re.IGNORECASE): #ambiguous knight capture move: Nf5xe5, Nd3xc4, nd3xc4, Nd3xf5
+            i0=8-int(move[2])
+            j0=ord(move[1])-ord('a')
+            i=8-int(move[5])
+            j=ord(move[4])-ord('a')
+            if white:
+                if new_pos[i,j] in 'PRNBQ':
+                    search=get_knight(new_pos,i,j,'n',move[1:3])
+                    if search:
+                        i0,j0=search
+                        new_pos[i,j]='n'
+                        new_pos[i0,j0]=''
+                else:
+                    raise IllegalMoveError(move)
+            else:
+                if new_pos[i,j] in 'prnbq':
+                    search=get_knight(new_pos,i,j,'N',move[1:3])
                     if search:
                         i0,j0=search
                         new_pos[i,j]='N'
@@ -237,14 +274,12 @@ class ChessPiece:
                                             found+=1
                                 elif len(ambiguous)==2: #if both row and column are specified
                                     if chr(j+k*move[1]+97)==ambiguous[0] and 8-(i+k*move[0])==int(ambiguous[1]):
-                                        print(i,j,k,move,ambiguous)
                                         coords=(i+k*move[0],j+k*move[1])
                                         found+=1
                             #check if no pieces are between the bishop and the target square
                             ct=False # skip outer loop if piece in way
                             for l in range(1,k):# from target to bishop go k times diagonally
                                 if pos[i+l*move[0],j+l*move[1]]!='': #if piece in way
-                                    print("k:",k)
                                     # raise IllegalMoveError(move)
                                     ct=True
                                     break #skip this bishop and direction for now
@@ -280,7 +315,7 @@ class ChessPiece:
                         new_pos[i0,j0]=''
                 else:
                     raise IllegalMoveError(move)
-        elif re.match(r'[b][x][a-h][1-8]', move,re.IGNORECASE): #bishop capture move: Bxf3, Bxf6, Bxh3, Bxh6
+        elif re.fullmatch(r'[b][x][a-h][1-8]', move,re.IGNORECASE): #bishop capture move: Bxf3, Bxf6, Bxh3, Bxh6
             i=8-int(move[3])
             j=ord(move[2])-ord('a')
             if white:
@@ -301,7 +336,7 @@ class ChessPiece:
                         new_pos[i0,j0]=''
                 else:
                     raise IllegalMoveError(move)
-        elif re.match(r'[b][a-h1-8][a-h][1-8]', move,re.IGNORECASE): #ambiguous bishop move: B2f3, Bcf3, B1f3, Bdf3
+        elif re.fullmatch(r'[b][a-h1-8][a-h][1-8]', move,re.IGNORECASE): #ambiguous bishop move: B2f3, Bcf3, B1f3, Bdf3
             i=8-int(move[3])
             j=ord(move[2])-ord('a')
             a=move[1].lower()
@@ -323,7 +358,7 @@ class ChessPiece:
                         new_pos[i0,j0]=''
                 else:
                     raise IllegalMoveError(move)
-        elif re.match(r'[b][a-h][1-8][a-h][1-8]', move,re.IGNORECASE): #ambiguous bishop move: Bf5e5, Bd3c4, bd3c4, Bd3f5
+        elif re.fullmatch(r'[b][a-h][1-8][a-h][1-8]', move,re.IGNORECASE): #ambiguous bishop move: Bf5e5, Bd3c4, bd3c4, Bd3f5
             i0=8-int(move[2])
             j0=ord(move[1])-ord('a')
             i=8-int(move[4])
@@ -346,7 +381,7 @@ class ChessPiece:
                         new_pos[i0,j0]=''
                 else:
                     raise IllegalMoveError(move)
-        elif re.match(r'[b][a-h1-8][x][a-h][1-8]', move,re.IGNORECASE): #ambiguous bishop capture move: B2xf3, Bcxf3, B1xf3, Bdxf3
+        elif re.fullmatch(r'[b][a-h1-8][x][a-h][1-8]', move,re.IGNORECASE): #ambiguous bishop capture move: B2xf3, Bcxf3, B1xf3, Bdxf3
             i=8-int(move[4])
             j=ord(move[3])-ord('a')
             a=move[1].lower()
@@ -368,7 +403,7 @@ class ChessPiece:
                         new_pos[i0,j0]=''
                 else:
                     raise IllegalMoveError(move)
-        elif re.match(r'[b][a-h][1-8][x][a-h][1-8]', move,re.IGNORECASE): #ambiguous bishop capture move: Bf5xe5, Bd3xc4, bd3xc4, Bd3xf5
+        elif re.fullmatch(r'[b][a-h][1-8][x][a-h][1-8]', move,re.IGNORECASE): #ambiguous bishop capture move: Bf5xe5, Bd3xc4, bd3xc4, Bd3xf5
             i0=8-int(move[2])
             j0=ord(move[1])-ord('a')
             i=8-int(move[5])
@@ -394,7 +429,21 @@ class ChessPiece:
         else:
             raise InvalidMoveError(move)
         return new_pos
-                            
+
+    # def rook_move(self, white, position, move):
+    #     new_pos=position.copy()
+    #     rook_moves=[(1,0),(-1,0),(0,1),(0,-1)]
+    #     def get_rook(pos,i,j,symbol,ambiguous='',moves=rook_moves):
+    #         found=0
+    #         for move in moves:
+    #             for k in range(1,8): 
+    #                 if 0<=i+k*move[0]<8 and 0<=j+k*move[1]<8: # all diagonal squares within bounds
+    #                     if pos[i+k*move[0],j+k*move[1]]==symbol: #if rook is found
+    #                         if ambiguous:      
+    #                             if ambiguous in 'abcdefgh':
+    #                                 if chr(j+k*move[1]+97)==ambiguous: # if column is specified
+    #                                     coords=(i+k*move[0],j+k*move[1]) #target square                
+
     def capture(self, position):
         # Implement the logic for capturing an opponent's piece
         pass
@@ -403,12 +452,72 @@ class ChessPiece:
         # Implement the logic for promoting a pawn to a new piece
         pass
 
+    def c2i(self, pos): # notation to x,y coordinate
+        i,j=8-int(pos[1]),ord(pos[0])-ord('a')
+        return(i,j)
+    def i2c(self, pos):
+        i,j=pos
+        return chr(j+97)+str(8-i)
+    
+    def rook_move(self,white,position,move):
+        #interpret move 
+        def rook_bfs(pos,i,j,symbol): # returns all valid rooks that can make this
+            moves=[(1,0),(-1,0),(0,1),(0,-1)]
+            found=[]
+            for move in moves: # for direction
+                for k in range(1,8): 
+                    if 0<=i+k*move[0]<8 and 0<=j+k*move[1]<8: #within bounds
+                        """# uncomment for debug visuals:
+                        from time import sleep
+                        Display(position,"green",highlight=(i+k*move[0],j+k*move[1]))
+                        sleep(1)
+                        """
+                        square=pos[i+k*move[0],j+k*move[1]]
+                        if square and square!=symbol: # obstructing piece
+                            break # next direction
+                        elif square==symbol: #found rook
+                            found.append((i+k*move[0],j+k*move[1])) #add coords of rook to found list
+                            break
+                    else:
+                        break # out of bounds search next direction
+            return [self.i2c(square) for square in found]
+        symbol="r" if white else "R"
+        rook_syntax = re.compile(r'^([a-h]|[0-8])?x?[a-h][1-8]$') # valid Rook move syntax
+        if rook_syntax.match(move):
+            new_pos=position.copy()
+            capture="x" in move
+            ambiguous= re.match(r"^([a-h]|[0-8])x?[a-h][1-8]$",move) #returns the ambigious part , either a letter or a number
+            ambiguous=ambiguous[1] if ambiguous else ""
+            tgt=move[-2:]
+            i,j=self.c2i(tgt)
+            rooks=rook_bfs(position,i,j,symbol)
+            rook=self.ambiguity(move,ambiguous,rooks)
+
+            if capture:
+                print(white,position[i,j],rook)
+                if ((white and position[i,j] in 'PRNBQ') or (not white and position[i,j] in 'prnbq')) and position[self.c2i(rook)]==symbol:
+                    new_pos[i,j]=symbol
+                    new_pos[self.c2i(rook)]='' 
+                else:
+                    raise IllegalMoveError(move)
+            else:
+                if position[i,j]=='':
+                    new_pos[i,j]=symbol
+                    new_pos[self.c2i(rook)]=''
+                else:
+                    raise InvalidMoveError(move)
+
+            return new_pos
+        else:
+            raise InvalidMoveError(move)
+
+
 if __name__=="__main__":
     start_board= np.array([
         ['R','N','B','Q','K','B','N','R'],
         ['P','P','P','P','P','P','P','P'],
         ['','','','','','','',''],
-        ['','','','','','','',''],
+        ['','r','','P','','P','','r'],
         ['','','','','','','',''],
         ['','','','','','','',''],
         ['p','p','p','p','p','p','p','p'],
@@ -442,6 +551,8 @@ while True:
             position=piece.knight_move(white,pos,move)
         elif move[0] == 'B':
             position=piece.bishop_move(white,pos,move)
+        elif move[0].lower()=='r':
+            position=piece.rook_move(white,pos,move[1:])
         else:
             raise InvalidMoveError(move)
         board=Display(position)
@@ -454,6 +565,3 @@ while True:
         print(f"Error: {e}")
         print(traceback.format_exc())
         input("press any key to continue...")
-
-    
-
