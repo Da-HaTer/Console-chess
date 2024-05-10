@@ -1,7 +1,6 @@
 from board import Board
 from draw import Display
-from time import time
-from 
+from time import sleep
 class ChessGame:
     def __init__(self):
         self.board = Board()
@@ -26,19 +25,12 @@ class ChessGame:
 
     def render_game(self):
         ## Render the game here
-        Display(self.board.board_position)
+        # Display(self.board.board_position)
+        pass
 
     def game_loop(self):
         # Game loop
-        while not self.game_end:
-            move=input('Enter move: ')
-            while not valid_move(self.board.board_position,move):
-                move=input('Enter valid move: ')
-            
-            # print(time(), end='\r')
-            self.handle_user_input()
-            self.update_game()
-            self.render_game()
+        pass
 
 if __name__ == "__main__":
     game = ChessGame()

@@ -109,152 +109,6 @@ class ChessPiece:
         
         return new_pos
 
-    # def knight_move(self, white, position, move):
-    #     knight_moves=[(2,1),(2,-1),(-2,1),(-2,-1),(1,2),(1,-2),(-1,2),(-1,-2)]
-        
-    #     def get_knight(pos,i,j,symbol,ambiguous='',moves=knight_moves): #knight position search to check if move valid
-    #         found=0
-    #         for move in moves:
-    #             if 0<=i+move[0]<8 and 0<=j+move[1]<8 and pos[i+move[0],j+move[1]]==symbol: #if knight is found
-    #                 if ambiguous:
-    #                     if len(ambiguous)==1:
-    #                         if ambiguous in 'abcdefgh':
-    #                             if chr(j+move[1]+97)==ambiguous: # if column is specified
-    #                                 coords=(i+move[0],j+move[1])
-    #                                 found+=1
-    #                         elif ambiguous in '12345678': # if row is specified
-    #                             if 8-(i+move[0])==int(ambiguous):
-    #                                 coords=(i+move[0],j+move[1])
-    #                                 found+=1
-    #                     elif len(ambiguous)==2: #if both row and column are specified
-    #                         if chr(j+move[1]+97)==ambiguous[0] and 8-(i+move[0])==int(ambiguous[1]):
-    #                             coords=(i+move[0],j+move[1])
-    #                             found+=1
-    #                 else:
-    #                     found+=1
-    #                     coords=(i+move[0],j+move[1])
-    #                 if found>1: #ambiguous move without specifying row or column
-    #                     raise ambigousMoveError(move)
-    #         if found==1:
-    #             return coords
-    #         raise IllegalMoveError(move)
-        
-    #     new_pos=position.copy() #make sure to return a copy of the board and not changin the original
-    #     if re.fullmatch(r'[n][a-h][1-8]', move,re.IGNORECASE): #simple knight move: Nf3, Nf6, Nh3, Nh6
-    #         i=8-int(move[2])
-    #         j=ord(move[1])-ord('a')
-    #         if white:
-    #             if new_pos[i,j]=='':
-    #                 search=get_knight(new_pos,i,j,'n')
-    #                 if search:
-    #                     i0,j0=search
-    #                     new_pos[i,j]='n'
-    #                     new_pos[i0,j0]=''
-    #             else:
-    #                 raise IllegalMoveError(move)
-    #         else:
-    #             if new_pos[i,j]=='':
-    #                 search=get_knight(new_pos,i,j,'N')
-    #                 if search:
-    #                     i0,j0=search
-    #                     new_pos[i,j]='N'
-    #                     new_pos[i0,j0]=''
-    #             else:
-    #                 raise IllegalMoveError(move)
-    #     elif re.fullmatch(r'[n][x][a-h][1-8]', move,re.IGNORECASE): #knight capture move: Nxf3, Nxf6, Nxh3, Nxh6 
-    #         i=8-int(move[3])
-    #         j=ord(move[2])-ord('a')
-    #         if white:
-    #             if new_pos[i,j] in 'PRNBQ':
-    #                 if get_knight(new_pos,i,j,'n'):
-    #                     i0,j0=get_knight(new_pos,i,j,'n')
-    #                     new_pos[i,j]='n'
-    #                     new_pos[i0,j0]=''
-    #             else:
-    #                 raise IllegalMoveError(move)
-    #         else:
-    #             if new_pos[i,j] in 'prnbq':
-    #                 if get_knight(new_pos,i,j,'N'):
-    #                     i0,j0=get_knight(new_pos,i,j,'N')
-    #                     new_pos[i,j]='N'
-    #                     new_pos[i0,j0]=''
-    #             else:
-    #                 raise IllegalMoveError(move)
-    #     elif re.fullmatch(r'[n][a-h1-8][a-h][1-8]', move,re.IGNORECASE): #ambiguous knight move: N2f3, Nf3, Nf3, Nf3
-    #         i=8-int(move[3])
-    #         j=ord(move[2])-ord('a')
-    #         a=move[1].lower()
-    #         if white:
-    #             if new_pos[i,j]=='':
-    #                 search=get_knight(new_pos,i,j,'n',a)
-    #                 if search:
-    #                     i0,j0=search
-    #                     new_pos[i,j]='n'
-    #                     new_pos[i0,j0]=''
-    #             else:
-    #                 raise IllegalMoveError(move)
-    #         else:
-    #             if new_pos[i,j]=='':
-    #                 search=get_knight(new_pos,i,j,'N',a)
-    #                 if search:
-    #                     i0,j0=search
-    #                     new_pos[i,j]='N'
-    #                     new_pos[i0,j0]=''
-    #             else:
-    #                 raise IllegalMoveError(move)
-    #     elif re.fullmatch(r'[n][a-h1-8][x][a-h][1-8]', move,re.IGNORECASE): #knight capture move: Nfxf3, Nfxf6, N3xh3, N2xh6
-    #         i=8-int(move[4])
-    #         j=ord(move[3])-ord('a')
-    #         a=move[1].lower() #ambiguity specifier
-    #         if white:
-    #             if new_pos[i,j] in 'PRNBQ':
-    #                 search=get_knight(new_pos,i,j,'n',a)
-    #                 if search:
-    #                     i0,j0=search
-    #                     new_pos[i,j]='n'
-    #                     new_pos[i0,j0]=''
-    #             else:
-    #                 raise IllegalMoveError(move)
-    #         else:
-    #             if new_pos[i,j] in 'prnbq':
-    #                 search=get_knight(new_pos,i,j,'N',a)
-    #                 if search:
-    #                     i0,j0=search
-    #                     new_pos[i,j]='N'
-    #                     new_pos[i0,j0]=''
-    #             else:
-    #                 raise IllegalMoveError(move)
-    #     elif re.fullmatch(r'[n][a-h][1-8][x][a-h][1-8]', move,re.IGNORECASE): #ambiguous knight capture move: Nf5xe5, Nd3xc4, nd3xc4, Nd3xf5
-    #         i0=8-int(move[2])
-    #         j0=ord(move[1])-ord('a')
-    #         i=8-int(move[5])
-    #         j=ord(move[4])-ord('a')
-    #         if white:
-    #             if new_pos[i,j] in 'PRNBQ':
-    #                 search=get_knight(new_pos,i,j,'n',move[1:3])
-    #                 if search:
-    #                     i0,j0=search
-    #                     new_pos[i,j]='n'
-    #                     new_pos[i0,j0]=''
-    #             else:
-    #                 raise IllegalMoveError(move)
-    #         else:
-    #             if new_pos[i,j] in 'prnbq':
-    #                 search=get_knight(new_pos,i,j,'N',move[1:3])
-    #                 if search:
-    #                     i0,j0=search
-    #                     new_pos[i,j]='N'
-    #                     new_pos[i0,j0]=''
-    #             else:
-    #                 raise IllegalMoveError(move)
-    #     else:
-    #         raise InvalidMoveError(move)
-    #     return new_pos
-    
-    def capture(self, position):
-        # Implement the logic for capturing an opponent's piece
-        pass
-
     def promote(self, new_piece):
         # Implement the logic for promoting a pawn to a new piece
         pass
@@ -265,9 +119,11 @@ class ChessPiece:
     def i2c(self, pos):
         i,j=pos
         return chr(j+97)+str(8-i)
+    def boundries(self,i,j):
+        return i>=0 and i<8 and j>=0 and j<8
     def Ranged_DFS(self,pos,i,j,symbol,moves_kernel): # returns all valid rooks that can make this
         found=[]
-        debug=True
+        debug=False
         """uncomment for debug visuals:"""
         if debug:
             display=Display(pos,"green")
@@ -292,7 +148,7 @@ class ChessPiece:
         return [self.i2c(square) for square in found]
     def Instant_DFS(self,pos,i,j,symbol,moves_kernel): # returns all valid rooks that can make this ### resuble for r,q,b
             found=[]
-            debug=True
+            debug=False
             if debug:
                 display=Display(pos,"green")
                 display.Highlight((i,j))
@@ -390,12 +246,51 @@ class ChessPiece:
         #interpret move 
         symbol="k" if white else "K"
         king_syntax = re.compile(r'^x?[a-h][1-8]$')
-        ambiguous= None
+        ambiguous= ""
         kernel=[(1,0),(-1,0),(0,1),(0,-1),(1,1),(-1,-1),(-1,1),(1,-1)]
         if king_syntax.match(move):
             return self.get_new_pos(move,position,symbol,ambiguous,kernel,short_range=True)
         else:
             raise InvalidMoveError(move)
+
+    def King_check(self,position,white):
+        symbol="k" if white else "K"
+        check=False
+        #attacking pieces
+        knight="K" if white else "k"
+        bishop="B" if white else "b"
+        rook="R" if white else "r"
+        queen="Q" if white else "q"
+        king_pos=(-1,-1)
+        for i in range(8): # find king in board
+            for j in range(8):
+                if position[i,j]==symbol:
+                    king_pos=(i,j)
+                    break
+        if king_pos==(-1,-1):
+            raise Exception("King not found")
+        i,j=king_pos
+        # pawn checks:
+        if (white and ((self.boundries(i+1,j+1) and position[i+1,j+1]=="p" )or (self.boundries(i+1,j-1) and position[i+1,j-1]=="p")))\
+              or (not white and((self.boundries(i-1,j+1) and  position[i-1,j+1]=="P" )or (self.boundries(i-1,j-1) and position[i-1,j-1]=="P"))): #if pawn check
+            return (i,j)
+            ### red highlight ?
+
+        rooks=self.Ranged_DFS(position,i,j,rook,[(1,0),(-1,0),(0,1),(0,-1)])
+        if rooks:
+            return (i,j)
+        knights=self.Instant_DFS(position,i,j,knight,[(1,2),(1,-2),(2,1),(2,-1),(-1,2),(-1,-2),(-2,1),(-2,-1)])
+        if knights:
+            return (i,j)
+        bishops=self.Ranged_DFS(position,i,j,bishop,[(1,1),(-1,-1),(-1,1),(1,-1)])
+        if bishops:
+            return (i,j)
+        queens=self.Ranged_DFS(position,i,j,queen,[(1,0),(-1,0),(0,1),(0,-1),(1,1),(-1,-1),(-1,1),(1,-1)])
+        if queens:
+            return (i,j)
+        return None
+    
+
 if __name__=="__main__":
     start_board= np.array([
         ['R','N','B','Q','K','B','N','R'],
@@ -410,8 +305,10 @@ if __name__=="__main__":
 old_pos=start_board
 pos=np.copy(old_pos)
 white=True
+highlight=None
 while True:
     board=Display(pos)
+    board.Highlight(highlight)
     w='\033[1m'+"white"+'\033[0m' # bold repr
     print(f'{ w if white else board.colored("black")} to play')
     move=input("Enter move: [move]|back|skip \n")
@@ -444,6 +341,8 @@ while True:
         else:
             raise InvalidMoveError(move)
         board=Display(position)
+        check=piece.King_check(position,white) or piece.King_check(position,not white)
+        highlight=check if check else None
         old_pos=np.copy(pos)
         pos=position
         white=not white

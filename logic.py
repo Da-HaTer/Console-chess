@@ -21,11 +21,6 @@ class ambigousMoveError(Exception):
         # Now for your custom code...
         self.errors = errors
 class Logic:
-    def __init__(self, ):
-        pass
-    def valid_move(self,position, move):
-        pass
-
     def valid_move_syntax(self,move):
         # room for improvement
         print(move,end=' ')
