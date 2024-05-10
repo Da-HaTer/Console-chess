@@ -7,3 +7,4 @@ A simple and creative chess game on console created for fun and test purposes.
 - [ ] en passant 
 - [x] promotions
 - [x] castle
+- [ ] Pin move invalidation 
