@@ -14,6 +14,7 @@ class ChessPiece:
         #types= p, r, n, b, q, k
         self.position = position
         #specific board position (np array)
+
     def ambiguity(self,move,specifier,moves):# return one single move given specified ambuity constraints otherwise None
         unique=[]
         for mv in moves:
@@ -26,6 +27,88 @@ class ChessPiece:
             raise ambigousMoveError(move)
         return unique[0] #return move
 
+    def c2i(self, pos): # notation to x,y coordinate
+        i,j=8-int(pos[1]),ord(pos[0])-ord('a')
+        return(i,j)
+
+    def i2c(self, pos):
+        i,j=pos
+        return chr(j+97)+str(8-i)
+
+    def boundries(self,i,j):
+        return i>=0 and i<8 and j>=0 and j<8
+
+    def Ranged_DFS(self,pos,i,j,symbol,moves_kernel): # returns all valid rooks that can make this
+        found=[]
+        debug=False
+        """uncomment for debug visuals:"""
+        if debug:
+            display=Display(pos,"green")
+            display.Highlight((i,j))
+        for move in moves_kernel: # for direction
+            for k in range(1,8): 
+                if 0<=i+k*move[0]<8 and 0<=j+k*move[1]<8: #within bounds
+                    """# uncomment for debug visuals:"""
+                    if debug:
+                        display.Highlight((i+k*move[0],j+k*move[1]))
+                    
+                    square=pos[i+k*move[0],j+k*move[1]]
+                    if square and square!=symbol: # obstructing piece
+                        break # next direction
+                    elif square==symbol: #found rook
+                        found.append((i+k*move[0],j+k*move[1])) #add coords of rook to found list
+                        break
+                else:
+                    break # out of bounds search next direction
+        if debug:
+            display.Highlight()
+        return [self.i2c(square) for square in found]
+
+    def Instant_DFS(self,pos,i,j,symbol,moves_kernel): # returns all valid rooks that can make this ### resuble for r,q,b
+            found=[]
+            debug=False
+            if debug:
+                display=Display(pos,"green")
+                display.Highlight((i,j))
+            for move in moves_kernel: # for direction
+                if 0<=i+move[0]<8 and 0<=j+move[1]<8: #within bounds
+                    if debug:
+                        display.Highlight((i+move[0],j+move[1]))
+                    
+                    square=pos[i+move[0],j+move[1]]
+                    if square==symbol: #found knight
+                        found.append((i+move[0],j+move[1])) #add coords of knight to found list
+            if debug:
+                display.Highlight()
+            return [self.i2c(square) for square in found] 
+
+    def get_new_pos(self,move,position,symbol,ambiguous,kernel,short_range=False):
+        new_pos=position.copy()
+        capture="x" in move
+
+        tgt=move[-2:]
+        i,j=self.c2i(tgt)
+        if short_range:
+            candidates=self.Instant_DFS(position,i,j,symbol,kernel)
+        else:
+            candidates=self.Ranged_DFS(position,i,j,symbol,kernel) # all pieces that could have made this move
+        piece=self.ambiguity(move,ambiguous,candidates)
+
+        if capture:
+            print(white,position[i,j],piece)
+            if ((white and position[i,j] in 'PRNBQ') or (not white and position[i,j] in 'prnbq')) and position[self.c2i(piece)]==symbol:
+                new_pos[i,j]=symbol
+                new_pos[self.c2i(piece)]='' 
+            else:
+                raise IllegalMoveError(move)
+        else:
+            if position[i,j]=='':
+                new_pos[i,j]=symbol
+                new_pos[self.c2i(piece)]=''
+            else:
+                raise InvalidMoveError(move)
+
+        return new_pos
 
     def pawn_move(self, white, position, move): #return position
         new_pos=position.copy()
@@ -109,89 +192,6 @@ class ChessPiece:
         
         return new_pos
 
-    def promote(self, new_piece):
-        # Implement the logic for promoting a pawn to a new piece
-        pass
-
-    def c2i(self, pos): # notation to x,y coordinate
-        i,j=8-int(pos[1]),ord(pos[0])-ord('a')
-        return(i,j)
-    def i2c(self, pos):
-        i,j=pos
-        return chr(j+97)+str(8-i)
-    def boundries(self,i,j):
-        return i>=0 and i<8 and j>=0 and j<8
-    def Ranged_DFS(self,pos,i,j,symbol,moves_kernel): # returns all valid rooks that can make this
-        found=[]
-        debug=False
-        """uncomment for debug visuals:"""
-        if debug:
-            display=Display(pos,"green")
-            display.Highlight((i,j))
-        for move in moves_kernel: # for direction
-            for k in range(1,8): 
-                if 0<=i+k*move[0]<8 and 0<=j+k*move[1]<8: #within bounds
-                    """# uncomment for debug visuals:"""
-                    if debug:
-                        display.Highlight((i+k*move[0],j+k*move[1]))
-                    
-                    square=pos[i+k*move[0],j+k*move[1]]
-                    if square and square!=symbol: # obstructing piece
-                        break # next direction
-                    elif square==symbol: #found rook
-                        found.append((i+k*move[0],j+k*move[1])) #add coords of rook to found list
-                        break
-                else:
-                    break # out of bounds search next direction
-        if debug:
-            display.Highlight()
-        return [self.i2c(square) for square in found]
-    def Instant_DFS(self,pos,i,j,symbol,moves_kernel): # returns all valid rooks that can make this ### resuble for r,q,b
-            found=[]
-            debug=False
-            if debug:
-                display=Display(pos,"green")
-                display.Highlight((i,j))
-            for move in moves_kernel: # for direction
-                if 0<=i+move[0]<8 and 0<=j+move[1]<8: #within bounds
-                    if debug:
-                        display.Highlight((i+move[0],j+move[1]))
-                    
-                    square=pos[i+move[0],j+move[1]]
-                    if square==symbol: #found knight
-                        found.append((i+move[0],j+move[1])) #add coords of knight to found list
-            if debug:
-                display.Highlight()
-            return [self.i2c(square) for square in found]
-          
-    def get_new_pos(self,move,position,symbol,ambiguous,kernel,short_range=False):
-        new_pos=position.copy()
-        capture="x" in move
-
-        tgt=move[-2:]
-        i,j=self.c2i(tgt)
-        if short_range:
-            candidates=self.Instant_DFS(position,i,j,symbol,kernel)
-        else:
-            candidates=self.Ranged_DFS(position,i,j,symbol,kernel) # all pieces that could have made this move
-        piece=self.ambiguity(move,ambiguous,candidates)
-
-        if capture:
-            print(white,position[i,j],piece)
-            if ((white and position[i,j] in 'PRNBQ') or (not white and position[i,j] in 'prnbq')) and position[self.c2i(piece)]==symbol:
-                new_pos[i,j]=symbol
-                new_pos[self.c2i(piece)]='' 
-            else:
-                raise IllegalMoveError(move)
-        else:
-            if position[i,j]=='':
-                new_pos[i,j]=symbol
-                new_pos[self.c2i(piece)]=''
-            else:
-                raise InvalidMoveError(move)
-
-        return new_pos
-        
     def rook_move(self,white,position,move):
         #interpret move 
 
@@ -253,54 +253,95 @@ class ChessPiece:
         else:
             raise InvalidMoveError(move)
 
-    def King_check(self,position,white):
-        symbol="k" if white else "K"
+    def King_check(self,board,white,position=None):
         check=False
+        symbol="k" if white else "K"
         #attacking pieces
         knight="K" if white else "k"
         bishop="B" if white else "b"
         rook="R" if white else "r"
         queen="Q" if white else "q"
-        king_pos=(-1,-1)
-        for i in range(8): # find king in board
-            for j in range(8):
-                if position[i,j]==symbol:
-                    king_pos=(i,j)
-                    break
-        if king_pos==(-1,-1):
-            raise Exception("King not found")
-        i,j=king_pos
+        if position is None:
+            
+            king_pos=(-1,-1)
+            for i in range(8): # find king in board
+                for j in range(8):
+                    if board[i,j]==symbol:
+                        king_pos=(i,j)
+                        break
+            if king_pos==(-1,-1):
+                raise Exception("King not found")
+            i,j=king_pos
+        else:
+            i,j=position
         # pawn checks:
-        if (white and ((self.boundries(i+1,j+1) and position[i+1,j+1]=="p" )or (self.boundries(i+1,j-1) and position[i+1,j-1]=="p")))\
-              or (not white and((self.boundries(i-1,j+1) and  position[i-1,j+1]=="P" )or (self.boundries(i-1,j-1) and position[i-1,j-1]=="P"))): #if pawn check
+        if (white and ((self.boundries(i+1,j+1) and board[i+1,j+1]=="p" )or (self.boundries(i+1,j-1) and board[i+1,j-1]=="p")))\
+              or (not white and((self.boundries(i-1,j+1) and  board[i-1,j+1]=="P" )or (self.boundries(i-1,j-1) and board[i-1,j-1]=="P"))): #if pawn check
             return (i,j)
             ### red highlight ?
 
-        rooks=self.Ranged_DFS(position,i,j,rook,[(1,0),(-1,0),(0,1),(0,-1)])
+        rooks=self.Ranged_DFS(board,i,j,rook,[(1,0),(-1,0),(0,1),(0,-1)])
         if rooks:
             return (i,j)
-        knights=self.Instant_DFS(position,i,j,knight,[(1,2),(1,-2),(2,1),(2,-1),(-1,2),(-1,-2),(-2,1),(-2,-1)])
+        knights=self.Instant_DFS(board,i,j,knight,[(1,2),(1,-2),(2,1),(2,-1),(-1,2),(-1,-2),(-2,1),(-2,-1)])
         if knights:
             return (i,j)
-        bishops=self.Ranged_DFS(position,i,j,bishop,[(1,1),(-1,-1),(-1,1),(1,-1)])
+        bishops=self.Ranged_DFS(board,i,j,bishop,[(1,1),(-1,-1),(-1,1),(1,-1)])
         if bishops:
             return (i,j)
-        queens=self.Ranged_DFS(position,i,j,queen,[(1,0),(-1,0),(0,1),(0,-1),(1,1),(-1,-1),(-1,1),(1,-1)])
+        queens=self.Ranged_DFS(board,i,j,queen,[(1,0),(-1,0),(0,1),(0,-1),(1,1),(-1,-1),(-1,1),(1,-1)])
         if queens:
             return (i,j)
         return None
     
+    def Casle(self,board,white,move):
+        new_pos=board.copy()
+        if not white:
+            if move=="O-O":
+                if new_pos[0,5]=='' and new_pos[0,6]==''and not self.King_check(new_pos,white,(0,4)) and not self.King_check(new_pos,white,(0,5)) and not self.King_check(new_pos,white,(0,6)):
+                    new_pos[0,5]='R'
+                    new_pos[0,6]='K'
+                    new_pos[0,4]=''
+                    new_pos[0,7]=''
+                else:
+                    raise IllegalMoveError(move)
+            elif move=="O-O-O":
+                if new_pos[0,1]=='' and new_pos[0,2]=='' and new_pos[0,3]=='' and not self.King_check(new_pos,white,(0,4)) and not self.King_check(new_pos,white,(0,3)) and not self.King_check(new_pos,white,(0,2)):
+                    new_pos[0,3]='R'
+                    new_pos[0,2]='K'
+                    new_pos[0,4]=''
+                    new_pos[0,0]=''
+                else:
+                    raise IllegalMoveError(move)
+        else:
+            if move=="O-O":
+                if new_pos[7,5]=='' and new_pos[7,6]=='' and not self.King_check(new_pos,white,(7,4)) and not self.King_check(new_pos,white,(7,5)) and not self.King_check(new_pos,white,(7,6)):
+                    new_pos[7,5]='r'
+                    new_pos[7,6]='k'
+                    new_pos[7,4]=''
+                    new_pos[7,7]=''
+                else:
+                    raise IllegalMoveError(move)
+            elif move=="O-O-O":
+                if new_pos[7,1]=='' and new_pos[7,2]=='' and new_pos[7,3]=='' and not self.King_check(new_pos,white,(7,4)) and not self.King_check(new_pos,white,(7,3)) and not self.King_check(new_pos,white,(7,2)):
+                    new_pos[7,3]='r'
+                    new_pos[7,2]='k'
+                    new_pos[7,4]=''
+                    new_pos[7,0]=''
+                else:
+                    raise IllegalMoveError(move)
+        return new_pos
 
 if __name__=="__main__":
     start_board= np.array([
         ['R','N','B','Q','K','B','N','R'],
         ['P','P','P','P','P','P','P','P'],
+        ['','B','','','','','',''],
         ['','','','','','','',''],
         ['','','','','','','',''],
         ['','','','','','','',''],
-        ['','','','','','','',''],
-        ['p','p','p','p','p','p','p','p'],
-        ['r','n','b','q','k','b','n','r']
+        ['p','p','p','p','p','','p','p'],
+        ['r','n','b','q','k','','','r']
     ])
 old_pos=start_board
 pos=np.copy(old_pos)
@@ -338,6 +379,8 @@ while True:
             position=piece.queen_move(white,pos,move[1:])
         elif move[0].lower()=='k':
             position=piece.King_move(white,pos,move[1:])
+        elif move.lower() in ('o-o','o-o-o'):
+            position=piece.Casle(pos,white,move)
         else:
             raise InvalidMoveError(move)
         board=Display(position)

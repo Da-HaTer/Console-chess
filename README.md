@@ -5,5 +5,5 @@ A simple and creative chess game on console created for fun and test purposes.
 - [x] checks
 - [ ] checkmates
 - [ ] en passant 
-- [ ] promotions
-- [ ] castle
+- [x] promotions
+- [x] castle
