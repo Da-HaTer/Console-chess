@@ -81,6 +81,35 @@ class ChessPiece:
                 display.Highlight()
             return [self.i2c(square) for square in found] 
 
+    def Pawn_Dfs(self,pos,i,j,white,en_passant=None): # returns all valid pawns that can make this move
+        debug=True
+        from time import sleep
+        if debug:
+            display=Display(pos,"green")
+            display.Highlight((i,j))
+        symbol="p" if white else "P"
+        found=[]
+        direction=1 if white else -1
+        pawn_kernel=[(direction,0)]# simple move
+        print(pos[i,j],white)
+        sleep(2)
+        if (i==4 and white) or (i==3 and not white): # double move
+            pawn_kernel+=[(2*direction,0)]
+        if  (white and pos[i,j]!="" and  pos[i,j] in 'BPNRQ' ) or (not white and pos[i,j]!="" and pos[i,j] in 'bpnrq' ):
+            pawn_kernel+=[(direction,1),(direction,-1)] # diagonal captures
+        for move in pawn_kernel:
+            sleep(0.2)
+            if self.boundries(i+move[0],j+move[1]):
+                if debug:
+                    display.Highlight((i+move[0],j+move[1]))
+                square=pos[i+move[0],j+move[1]]
+                if square==symbol: #found pawn
+                    found.append((i+move[0],j+move[1]))
+        # if debug:
+        #     display.Highlight()
+        return [self.i2c(square) for square in found]
+
+        
     def get_new_pos(self,move,position,symbol,ambiguous,kernel,short_range=False):
         new_pos=position.copy()
         capture="x" in move
@@ -192,8 +221,6 @@ class ChessPiece:
 
     # def pawn_move2(self,white,position,move,en_passant=None):
     #     #en passant is a letter of the pawn
-    #     symbol="p" if white else "P"
-    #     osymbol="P" if white else "p" #symbol of opponent pawns
     #     pawn_syntax= re.compile(r'^([a-h][x])?[a-h][1-8]$')
     #     direction=-1 if white else 1
     #     pawn_kernel=[(direction,0)]
@@ -326,7 +353,7 @@ class ChessPiece:
             checks+=bishops
         return (checks) # all checking squares and position of the king
     
-    def Casle(self,board,white,move):
+    def Castle(self,board,white,move):
         new_pos=board.copy()
         if not white:
             if move=="O-O":
@@ -366,6 +393,18 @@ class ChessPiece:
 
     def Checkmate(self,board,white,kingpos=None):
         Checkmate=True
+        def interpolate(start,end):
+            i,j=start
+            k,l=end
+            if i==k:
+                return [(i,m) for m in range(j,l)]
+            elif j==l:
+                return [(m,j) for m in range(i,k)]
+            elif abs(k-i)==abs(l-j):
+                return [(i+m,j+m) for m in range(1,abs(k-i))]
+            else:
+                return [(i+m,j+n) for m in range(1,abs(k-i)) for n in range(1,abs(l-j)) if abs(k-i)==abs(l-j) and m==n]
+            
         king_kernel=[(1,0),(-1,0),(0,1),(0,-1),(1,1),(-1,-1),(-1,1),(1,-1)]
         symbol="k" if white else "K"
         friendlies="pbnrq" if white else "PBNRQ"
@@ -375,6 +414,9 @@ class ChessPiece:
                     if board[i,j]==symbol:
                         kingpos=(i,j)
                         break
+        checks=self.King_check(board,white,kingpos)
+        if not checks:
+            return False
         for move in king_kernel:
             square=kingpos[0]+move[0],kingpos[1]+move[1]
             if not self.boundries(square) or board[square[0],square[1]] in friendlies: #capture own pieces
@@ -383,6 +425,21 @@ class ChessPiece:
                 continue
             else: # can move or capture with move
                 return False
+        
+        if len(checks)>1: # double check and can't move anywhere
+            return True
+        else:
+            attacker=checks[0]
+            for square in interpolate(kingpos,attacker):
+                for symbol in "brq" if white else "BRQ":
+                    if self.Ranged_DFS(board,square[0],square[1],symbol,[(1,0),(-1,0),(0,1),(0,-1)]):
+                        return False
+                symbol="n" if white else "N"
+                if self.Instant_DFS(board,square[0],square[1],symbol,[(1,2),(1,-2),(2,1),(2,-1),(-1,2),(-1,-2),(-2,1),(-2,-1)]):
+                    return False
+                symbol="p" if white else "P"
+                if self.Instant_DFS(board,square[0],square[1],symbol,[(1,1),(-1,-1),(-1,1),(1,-1)]):
+                    return False
         return Checkmate
             
 
@@ -413,11 +470,15 @@ highlight=None
 while True:
     piece=ChessPiece('w',start_board)
     board=Display(pos)
-    check=piece.King_check(pos,white) or piece.King_check(pos,not white)
-    highlight=None
-    if check:
-        highlight=kings[0] if white else kings[1]
-    board.Highlight(highlight)
+    checks=(piece.King_check(pos,True),piece.King_check(pos,False))
+
+    # highlight=None
+    # if checks[0]:
+    #     highlight=kings[0]  
+    # if checks[1]:
+    #     highlight=kings[1]
+    # board.Highlight(highlight)
+    print("white checks:", checks[0], "Black checks: ",checks[1])
     w='\033[1m'+"white"+'\033[0m' # bold repr
     print(f'{ w if white else board.colored("black")} to play')
     move=input("Enter move: [move]|back|skip \n")
@@ -438,6 +499,8 @@ while True:
         ## solution: bishop: capital letter, pawn: small letter b
         if move[0] in 'abcdefgh':  
             position=piece.pawn_move(white,pos,move)
+            i,j=piece.c2i(move[-2:])
+            piece.Pawn_Dfs(pos,i,j,white)
         elif move[0].lower() == 'n':
             position=piece.knight_move(white,pos,move[1:])
         elif move[0] == 'B':
@@ -452,7 +515,7 @@ while True:
             kings=[king_move[1],kings[1]] if white else [kings[0],king_move[1]] #update kings position (for optimization)
 
         elif move.lower() in ('o-o','o-o-o'):
-            position=piece.Casle(pos,white,move)
+            position=piece.Castle(pos,white,move)
         else:
             raise InvalidMoveError(move)
         board=Display(position)
