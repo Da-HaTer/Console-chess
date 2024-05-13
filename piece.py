@@ -91,12 +91,29 @@ class ChessPiece:
         found=[]
         direction=1 if white else -1
         pawn_kernel=[(direction,0)]# simple move
-        print(pos[i,j],white)
-        sleep(2)
         if (i==4 and white) or (i==3 and not white): # double move
             pawn_kernel+=[(2*direction,0)]
-        if  (white and pos[i,j]!="" and  pos[i,j] in 'BPNRQ' ) or (not white and pos[i,j]!="" and pos[i,j] in 'bpnrq' ):
-            pawn_kernel+=[(direction,1),(direction,-1)] # diagonal captures
+        if  (white and pos[i,j] in ('B','P','N','R','Q') ) or (not white and pos[i,j] in ('b','p','n','r','q')): #capture move
+            pawn_kernel+=[(direction,1),(direction,-1)] # diagonal captures 
+        if en_passant and pos[i,j]=="": # en passant
+            input("en passant!!")
+            col=ord(en_passant) - ord('a')
+            if white and self.boundries(3,col+1) and pos[3,col+1]=="p":
+                print("en passant",self.i2c((3,col+1)))
+                input("test")
+                found.append((3,col+1))
+            if white and self.boundries(3,col-1) and pos[3,col-1]=="p":
+                print("en passant",self.i2c((3,col-1)))
+                input("test")
+                found.append((3,col-1))
+            elif not white and self.boundries(4,col+1) and pos[4,col+1]=="P":
+                print("en passant",self.i2c((4,col+1)))
+                input("test")
+                found.append((4,col+1))
+            elif not white and self.boundries(4,col-1) and pos[4,col-1]=="P":
+                print("en passant",self.i2c((4,col-1)))
+                input("test")
+                found.append((4,col-1))
         for move in pawn_kernel:
             sleep(0.2)
             if self.boundries(i+move[0],j+move[1]):
@@ -140,6 +157,7 @@ class ChessPiece:
 
     def pawn_move(self, white, position, move): #return position
         new_pos=position.copy()
+        en_passant=None
         if len(move) == 2: # simple pawn move: e4, d4, e5, d5
             j = ord(move[0]) - ord('a') #col
             i = 8 - int(move[1]) #row
@@ -152,6 +170,7 @@ class ChessPiece:
                 elif i==4 and new_pos[i, j] == '' and new_pos[i+2, j] == 'p': # 2 square move
                     new_pos[i, j] = 'p'
                     new_pos[i+2, j] = ''
+                    en_passant=move[0]
                 else:
                     raise IllegalMoveError(move)
             else: #black pawn move
@@ -163,6 +182,7 @@ class ChessPiece:
                 elif i==3 and new_pos[i, j] == '' and new_pos[i-2, j] == 'P': # 2 square move
                     new_pos[i, j] = 'P'
                     new_pos[i-2, j] = ''
+                    en_passant=move[0]
                 else:
                     raise IllegalMoveError(move)
         elif re.fullmatch(r'[a-h][x][a-h][1-7]', move):# pawn capture move: exd4, dxe4, exd4, dxe4
@@ -172,11 +192,13 @@ class ChessPiece:
             if abs(j1-j2) != 1: #not diagonally capturing ### add custom en passant
                 raise IllegalMoveError(move)
             if white:
-                if new_pos[i, j2] in 'PRNBQK' and new_pos[i+1, j1] == 'p':
+                if new_pos[i, j2] in ('B','P','N','R','Q') and new_pos[i+1, j1] == 'p':
                     new_pos[i, j2] = 'p'
                     new_pos[i+1, j1] = ''
+                else:
+                    raise IllegalMoveError(move)
             else:
-                if new_pos[i, j2] in 'prnbqk' and new_pos[i-1, j1] == 'P':
+                if new_pos[i, j2] in ('b','p','n','r','q') and new_pos[i-1, j1] == 'P':
                     new_pos[i, j2] = 'P'
                     new_pos[i-1, j1] = ''
                 else:
@@ -188,13 +210,13 @@ class ChessPiece:
             if abs(j1-j2) != 1:
                 raise IllegalMoveError(move)
             if white:
-                if new_pos[i, j2] in 'PRNBQK' and new_pos[i+1, j1] == 'p':
+                if new_pos[i, j2] in ('B','P','N','R','Q') and new_pos[i+1, j1] == 'p':
                     new_pos[i, j2] = move[5].lower()
                     new_pos[i+1, j1] = ''
                 else:
                     raise IllegalMoveError(move)
             else:
-                if new_pos[i, j2] in 'prnbqk' and new_pos[i-1, j1] == 'P':
+                if new_pos[i, j2] in ('b','p','n','r','q') and new_pos[i-1, j1] == 'P':
                     new_pos[i, j2] = move[5].upper()
                     new_pos[i-1, j1] = ''
                 else:
@@ -217,7 +239,7 @@ class ChessPiece:
         ### add en passant
         else:
             raise IllegalMoveError(move)
-        return new_pos
+        return (new_pos,en_passant)
 
     # def pawn_move2(self,white,position,move,en_passant=None):
     #     #en passant is a letter of the pawn
@@ -467,11 +489,16 @@ kings=old_kings[:] # copy
 pos=np.copy(old_pos)
 white=True
 highlight=None
+en_passant=[None,None]
+old_en_passant=[None,None]
 while True:
     piece=ChessPiece('w',start_board)
     board=Display(pos)
     checks=(piece.King_check(pos,True),piece.King_check(pos,False))
-
+    if white:
+        en_passant[0]=None
+    else:
+        en_passant[1]=None
     # highlight=None
     # if checks[0]:
     #     highlight=kings[0]  
@@ -479,14 +506,18 @@ while True:
     #     highlight=kings[1]
     # board.Highlight(highlight)
     print("white checks:", checks[0], "Black checks: ",checks[1])
+    print("enpassant:",en_passant[0],en_passant[1])
     w='\033[1m'+"white"+'\033[0m' # bold repr
     print(f'{ w if white else board.colored("black")} to play')
     move=input("Enter move: [move]|back|skip \n")
+
+
     if move=="q":
         break
     elif move=="back":
         pos=old_pos
         kings=old_kings
+        en_passant=old_en_passant
         white=not white
         continue
     elif move=="skip":
@@ -498,9 +529,14 @@ while True:
         ##example: bxc4 could be a pawn move or a bishop move
         ## solution: bishop: capital letter, pawn: small letter b
         if move[0] in 'abcdefgh':  
-            position=piece.pawn_move(white,pos,move)
+            t=piece.pawn_move(white,pos,move)
+            position=t[0]
+            if white:
+                en_passant[0]=t[1]
+            else:
+                en_passant[1]=t[1]
             i,j=piece.c2i(move[-2:])
-            piece.Pawn_Dfs(pos,i,j,white)
+            piece.Pawn_Dfs(pos,i,j,white,en_passant[1] if white else en_passant[0])
         elif move[0].lower() == 'n':
             position=piece.knight_move(white,pos,move[1:])
         elif move[0] == 'B':
@@ -521,6 +557,7 @@ while True:
         board=Display(position)
         old_pos=np.copy(pos)
         old_kings=kings[:]
+        old_en_passant=en_passant[:]
         pos=position
         
         white=not white
