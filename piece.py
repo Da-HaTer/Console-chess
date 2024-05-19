@@ -16,8 +16,11 @@ class ChessPiece:
         #specific board position (np array)
 
     def ambiguity(self,move,specifier,moves):# return one single move given specified ambuity constraints otherwise None
+        #move: user input
+        #specier example: "a" for a1, "1" for a1, "a1" for a1
+        #moves: list of possible moves
         unique=[]
-        for mv in moves:
+        for mv in moves: ### can have issues (test if )
             if specifier in mv:
                 unique.append(mv)
         if len(unique)==0:
@@ -81,7 +84,7 @@ class ChessPiece:
                 display.Highlight()
             return [self.i2c(square) for square in found] 
 
-    def Pawn_Dfs(self,pos,i,j,white,en_passant=None): # returns all valid pawns that can make this move
+    def Pawn_Dfs(self,pos,i,j,white,ep=[None,None]): # returns all valid pawns that can make this move
         debug=True
         from time import sleep
         if debug:
@@ -90,6 +93,7 @@ class ChessPiece:
         symbol="p" if white else "P"
         found=[]
         direction=1 if white else -1
+        en_passant=ep[1] if white else ep[0]
         pawn_kernel=[(direction,0)]# simple move
         if (i==4 and white) or (i==3 and not white): # double move
             pawn_kernel+=[(2*direction,0)]
@@ -97,22 +101,23 @@ class ChessPiece:
             pawn_kernel+=[(direction,1),(direction,-1)] # diagonal captures 
         if en_passant and pos[i,j]=="": # en passant
             input("en passant!!")
-            col=ord(en_passant) - ord('a')
-            if white and self.boundries(3,col+1) and pos[3,col+1]=="p":
+            print(en_passant)
+            col=ord(en_passant[0]) - ord('a')
+            if white and self.boundries(3,col+1) and pos[3,col+1]=="p": #pawn adjacent (right)
                 print("en passant",self.i2c((3,col+1)))
-                input("test")
+                input("test1")
                 found.append((3,col+1))
-            if white and self.boundries(3,col-1) and pos[3,col-1]=="p":
+            if white and self.boundries(3,col-1) and pos[3,col-1]=="p": #pawn adjacent (left)
                 print("en passant",self.i2c((3,col-1)))
-                input("test")
+                input("test2")
                 found.append((3,col-1))
-            elif not white and self.boundries(4,col+1) and pos[4,col+1]=="P":
+            elif not white and self.boundries(4,col+1) and pos[4,col+1]=="P": #pawn adjacent (right)
                 print("en passant",self.i2c((4,col+1)))
-                input("test")
+                input("test3")
                 found.append((4,col+1))
-            elif not white and self.boundries(4,col-1) and pos[4,col-1]=="P":
+            elif not white and self.boundries(4,col-1) and pos[4,col-1]=="P": #pawn adjacent (left)
                 print("en passant",self.i2c((4,col-1)))
-                input("test")
+                input("test4")
                 found.append((4,col-1))
         for move in pawn_kernel:
             sleep(0.2)
@@ -127,7 +132,7 @@ class ChessPiece:
         return [self.i2c(square) for square in found]
 
         
-    def get_new_pos(self,move,position,symbol,ambiguous,kernel,short_range=False):
+    def get_new_pos(self,move,position,symbol,ambiguous,kernel,short_range=False): #used for all pieces except pawns
         new_pos=position.copy()
         capture="x" in move
 
@@ -137,11 +142,11 @@ class ChessPiece:
             candidates=self.Instant_DFS(position,i,j,symbol,kernel)
         else:
             candidates=self.Ranged_DFS(position,i,j,symbol,kernel) # all pieces that could have made this move
-        piece=self.ambiguity(move,ambiguous,candidates)
+        piece=self.ambiguity(move,ambiguous,candidates) #return one single move given specified ambuity constraints otherwise None
 
         if capture:
             print(white,position[i,j],piece)
-            if ((white and position[i,j] in 'PRNBQ') or (not white and position[i,j] in 'prnbq')) and position[self.c2i(piece)]==symbol:
+            if ((white and position[i,j] in ('B','P','N','R','Q')) or (not white and position[i,j] in ('b','p','n','r','q'))) and position[self.c2i(piece)]==symbol:
                 new_pos[i,j]=symbol
                 new_pos[self.c2i(piece)]='' 
             else:
@@ -155,7 +160,7 @@ class ChessPiece:
 
         return new_pos
 
-    def pawn_move(self, white, position, move): #return position
+    def pawn_move(self, white, position, move): #hardcoded
         new_pos=position.copy()
         en_passant=None
         if len(move) == 2: # simple pawn move: e4, d4, e5, d5
@@ -241,37 +246,46 @@ class ChessPiece:
             raise IllegalMoveError(move)
         return (new_pos,en_passant)
 
-    # def pawn_move2(self,white,position,move,en_passant=None):
-    #     #en passant is a letter of the pawn
-    #     pawn_syntax= re.compile(r'^([a-h][x])?[a-h][1-8]$')
-    #     direction=-1 if white else 1
-    #     pawn_kernel=[(direction,0)]
-    #     kernel_capture_state=[False]
-    #     new_pos=position.copy()
-    #     if "x" in move:
-    #         if en_passant: # en passant
-    #             col=move[0]
-    #             lin="5" if white else "4"
-    #             i,j=self.c2i(col+lin) #position of pawn that will capture with en passant
-    #             if (self.boundries(i,j+1) and position[i,j+1]==osymbol): #if pawn is adjacent
-    #                 new_pos[i,j+1]==symbol
-    #                 new_pos[i,j]==""
-    #                 return new_pos
-    #             elif(self.boundries(i,j-1) and position[i,j-1]==osymbol): ### no dfs search for checkmate
-    #                 new_pos[i,j-1]==symbol
-    #                 new_pos[i,j]==""
-    #             else:
-    #                 raise InvalidMoveError(move)
-                
-    #         pawn_kernel+=[(direction,1),(direction,-1)] # diagonal captures
-    #         kernel_capture_state.append(True)
-        
-    #     col=move[-2]# normal move: col of movement
-    #     if ((white and position[self.c2i(col+"2")]=="p") or (not white and position[self.c2i(col+"7")]=="P")):
-    #         pawn_kernel+=[(2*direction,0)] # two moves
-    #         kernel_capture_state.append(False)
-        
+    def pawn_move2(self,white,position,move,en_passant=[None,None]): ### Run Tests
+        pawn_syntax= re.compile(r'^([a-h][x])?[a-h][1-8]=?[rbnq]?$',re.IGNORECASE)
+        if not pawn_syntax.match(move):
+            raise InvalidMoveError(move)
+        square= re.search(r'[a-h][1-8]',move,re.IGNORECASE)[0]
+        symbol="p" if white else "P"
 
+        promote=re.search(r'=[QRBN]$',move,re.IGNORECASE)
+        capture=re.search(r'^[a-h][x]',move,re.IGNORECASE)
+
+        i,j= self.c2i(square)
+
+        promote=promote[0][1] if promote else ""
+        capture=capture[0][0] if capture else ""
+        
+        if promote and not ((i==0 and white) or (i==7 and not white)):
+            raise InvalidMoveError(move) #invalid promotion
+        new_pos=position.copy()
+        Pawns=self.Pawn_Dfs(position,i,j,white,en_passant)
+
+        print("Candidates: ",Pawns)
+        sleep(1)
+        if len(Pawns)==0:
+            raise InvalidMoveError(move)
+        else:
+            pawn=self.ambiguity(move,capture,Pawns)
+            print("Selected: ",pawn)
+            sleep(0.5)
+            new_pos[i,j]=symbol
+            new_pos[self.c2i(pawn)]=''
+            if white:
+                en_passant[0]=None
+                if i==4 and pawn[1]=="2": #two square move
+                    en_passant[0]=square
+            else: #two square move
+                en_passant[1]=None
+                if i==3 and pawn[1]=="7":
+                    en_passant[1]=square
+            return (new_pos,en_passant)
+        
     def rook_move(self,white,position,move):
         #interpret move 
 
@@ -477,12 +491,21 @@ if __name__=="__main__":
         ['R','N','B','Q','K','B','N','R'],
         ['P','P','P','P','P','P','P','P'],
         ['','','','','','','',''],
-        ['','','','','','','',''],
+        ['','','','','p','','p',''],
         ['','','','','','','',''],
         ['','','','','','','',''],
         ['p','p','p','p','p','p','p','p'],
         ['r','n','b','q','k','b','n','r']
     ])
+    empty_board= np.array([
+        ['','','','','K','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['','','','','k','','','']])
 old_pos=start_board
 old_kings=[(7,4),(0,4)] #kings position
 kings=old_kings[:] # copy
@@ -507,6 +530,7 @@ while True:
     # board.Highlight(highlight)
     print("white checks:", checks[0], "Black checks: ",checks[1])
     print("enpassant:",en_passant[0],en_passant[1])
+    sleep(1)
     w='\033[1m'+"white"+'\033[0m' # bold repr
     print(f'{ w if white else board.colored("black")} to play')
     move=input("Enter move: [move]|back|skip \n")
@@ -529,14 +553,11 @@ while True:
         ##example: bxc4 could be a pawn move or a bishop move
         ## solution: bishop: capital letter, pawn: small letter b
         if move[0] in 'abcdefgh':  
-            t=piece.pawn_move(white,pos,move)
+            t=piece.pawn_move2(white,pos,move,en_passant)
             position=t[0]
-            if white:
-                en_passant[0]=t[1]
-            else:
-                en_passant[1]=t[1]
-            i,j=piece.c2i(move[-2:])
-            piece.Pawn_Dfs(pos,i,j,white,en_passant[1] if white else en_passant[0])
+            en_passant=t[1]
+            # i,j=piece.c2i(move[-2:])
+            # piece.Pawn_Dfs(pos,i,j,white,en_passant[1] if white else en_passant[0])
         elif move[0].lower() == 'n':
             position=piece.knight_move(white,pos,move[1:])
         elif move[0] == 'B':
