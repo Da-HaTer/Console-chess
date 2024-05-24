@@ -94,30 +94,32 @@ class ChessPiece:
         found=[]
         direction=1 if white else -1
         en_passant=ep[1] if white else ep[0]
-        pawn_kernel=[(direction,0)]# simple move
-        if (i==4 and white) or (i==3 and not white): # double move
+        pawn_kernel=[]# simple move
+        if  pos[i,j]=="": #pawn found
+            pawn_kernel+=[(direction,0)]
+        if (i==4 and white) or (i==3 and not white) and pos[i,j]=='' : # double move
             pawn_kernel+=[(2*direction,0)]
         if  (white and pos[i,j] in ('B','P','N','R','Q') ) or (not white and pos[i,j] in ('b','p','n','r','q')): #capture move
             pawn_kernel+=[(direction,1),(direction,-1)] # diagonal captures 
         if en_passant and pos[i,j]=="": # en passant
-            input("en passant!!")
-            print(en_passant)
+            # input("en passant!!")
+            # print(en_passant)
             col=ord(en_passant[0]) - ord('a')
             if white and self.boundries(3,col+1) and pos[3,col+1]=="p": #pawn adjacent (right)
-                print("en passant",self.i2c((3,col+1)))
-                input("test1")
+                # print("en passant",self.i2c((3,col+1)))
+                # input("test1")
                 found.append((3,col+1))
             if white and self.boundries(3,col-1) and pos[3,col-1]=="p": #pawn adjacent (left)
-                print("en passant",self.i2c((3,col-1)))
-                input("test2")
+                # print("en passant",self.i2c((3,col-1)))
+                # input("test2")
                 found.append((3,col-1))
             elif not white and self.boundries(4,col+1) and pos[4,col+1]=="P": #pawn adjacent (right)
-                print("en passant",self.i2c((4,col+1)))
-                input("test3")
+                # print("en passant",self.i2c((4,col+1)))
+                # input("test3")
                 found.append((4,col+1))
             elif not white and self.boundries(4,col-1) and pos[4,col-1]=="P": #pawn adjacent (left)
-                print("en passant",self.i2c((4,col-1)))
-                input("test4")
+                # print("en passant",self.i2c((4,col-1)))
+                # input("test4")
                 found.append((4,col-1))
         for move in pawn_kernel:
             sleep(0.2)
@@ -131,7 +133,7 @@ class ChessPiece:
         #     display.Highlight()
         return [self.i2c(square) for square in found]
 
-        
+
     def get_new_pos(self,move,position,symbol,ambiguous,kernel,short_range=False): #used for all pieces except pawns
         new_pos=position.copy()
         capture="x" in move
@@ -491,7 +493,7 @@ if __name__=="__main__":
         ['R','N','B','Q','K','B','N','R'],
         ['P','P','P','P','P','P','P','P'],
         ['','','','','','','',''],
-        ['','','','','p','','p',''],
+        ['','','','','','','',''],
         ['','','','','','','',''],
         ['','','','','','','',''],
         ['p','p','p','p','p','p','p','p'],
@@ -522,18 +524,18 @@ while True:
         en_passant[0]=None
     else:
         en_passant[1]=None
-    # highlight=None
-    # if checks[0]:
-    #     highlight=kings[0]  
-    # if checks[1]:
-    #     highlight=kings[1]
-    # board.Highlight(highlight)
+    highlight=None
+    if checks[0]:
+        highlight=kings[0]  
+    if checks[1]:
+        highlight=kings[1]
+    board.Highlight(highlight)
     print("white checks:", checks[0], "Black checks: ",checks[1])
     print("enpassant:",en_passant[0],en_passant[1])
     sleep(1)
     w='\033[1m'+"white"+'\033[0m' # bold repr
     print(f'{ w if white else board.colored("black")} to play')
-    move=input("Enter move: [move]|back|skip \n")
+    move=input("Enter move: ( [move]|back|skip|reset )\n")
 
 
     if move=="q":
@@ -547,7 +549,13 @@ while True:
     elif move=="skip":
         white=not white
         continue
-    
+    elif move=="reset":
+        pos=start_board
+        kings=[(7,4),(0,4)]
+        en_passant=[None,None]
+        white=True
+        highlight=None
+        continue
     try:
         ### conflict between b pawn and bishop notation should probably be resolved with classifying by syntax instead of throwing errors right away
         ##example: bxc4 could be a pawn move or a bishop move
