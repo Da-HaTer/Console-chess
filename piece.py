@@ -85,7 +85,7 @@ class ChessPiece:
             return [self.i2c(square) for square in found] 
 
     def Pawn_Dfs(self,pos,i,j,white,ep=[None,None]): # returns all valid pawns that can make this move
-        debug=True
+        debug=False
         from time import sleep
         if debug:
             display=Display(pos,"green")
@@ -122,7 +122,7 @@ class ChessPiece:
                 # input("test4")
                 found.append((4,col-1))
         for move in pawn_kernel:
-            sleep(0.2)
+            # sleep(0.2)
             if self.boundries(i+move[0],j+move[1]):
                 if debug:
                     display.Highlight((i+move[0],j+move[1]))
@@ -269,13 +269,13 @@ class ChessPiece:
         Pawns=self.Pawn_Dfs(position,i,j,white,en_passant)
 
         print("Candidates: ",Pawns)
-        sleep(1)
+        # sleep(1)
         if len(Pawns)==0:
             raise InvalidMoveError(move)
         else:
             pawn=self.ambiguity(move,capture,Pawns)
-            print("Selected: ",pawn)
-            sleep(0.5)
+            # print("Selected: ",pawn)
+            # sleep(0.5)
             new_pos[i,j]=symbol
             new_pos[self.c2i(pawn)]=''
             if white:
@@ -358,8 +358,7 @@ class ChessPiece:
         bishop="B" if white else "b"
         rook="R" if white else "r"
         queen="Q" if white else "q"
-        if position is None:
-            
+        if position is None:    
             king_pos=(-1,-1)
             for i in range(8): # find king in board
                 for j in range(8):
@@ -388,7 +387,7 @@ class ChessPiece:
             checks+=bishops
         queens=self.Ranged_DFS(board,i,j,queen,[(1,0),(-1,0),(0,1),(0,-1),(1,1),(-1,-1),(-1,1),(1,-1)])
         if queens:
-            checks+=bishops
+            checks+=queens
         return (checks) # all checking squares and position of the king
     
     def Castle(self,board,white,move):
@@ -532,7 +531,7 @@ while True:
     board.Highlight(highlight)
     print("white checks:", checks[0], "Black checks: ",checks[1])
     print("enpassant:",en_passant[0],en_passant[1])
-    sleep(1)
+    # sleep(1)
     w='\033[1m'+"white"+'\033[0m' # bold repr
     print(f'{ w if white else board.colored("black")} to play')
     move=input("Enter move: ( [move]|back|skip|reset )\n")
@@ -578,11 +577,15 @@ while True:
             king_move=piece.King_move(white,pos,move[1:])
             position=king_move[0]
             kings=[king_move[1],kings[1]] if white else [kings[0],king_move[1]] #update kings position (for optimization)
-
+        
         elif move.lower() in ('o-o','o-o-o'):
             position=piece.Castle(pos,white,move)
         else:
             raise InvalidMoveError(move)
+        checks=(piece.King_check(position,True),piece.King_check(position,False))
+        if white and checks[0] or not white and checks[1]: 
+            raise IllegalMoveError(move)
+        
         board=Display(position)
         old_pos=np.copy(pos)
         old_kings=kings[:]
