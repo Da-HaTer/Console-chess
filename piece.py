@@ -1,6 +1,7 @@
 import numpy as np
 import regex as re
 from time import sleep
+from board import Board
 from logic import Logic
 from logic import IllegalMoveError, InvalidMoveError, ambigousMoveError
 from draw import Display
@@ -534,8 +535,9 @@ while True:
     # sleep(1)
     w='\033[1m'+"white"+'\033[0m' # bold repr
     print(f'{ w if white else board.colored("black")} to play')
-    move=input("Enter move: ( [move]|back|skip|reset )\n")
-
+    print("Kings pos:",f"{piece.i2c(kings[0])} {piece.i2c(kings[1])}")
+    print("Old Kings pos:",f"{piece.i2c(old_kings[0])} {piece.i2c(old_kings[1])}")
+    move=input("Enter move: ( [move]|back|skip|reset|[Get/Set] FEN )\n")
 
     if move=="q":
         break
@@ -555,6 +557,15 @@ while True:
         white=True
         highlight=None
         continue
+    elif move.upper()=="GET FEN":
+        Board().matrix_to_fen(pos,True)
+        input("press any key to continue...")
+        continue
+    elif move.upper()=="SET FEN":
+        fen=input("Enter FEN: ")
+        pos=Board().fen_to_matrix(fen)
+        continue
+    old_kings=kings[:]
     try:
         ### conflict between b pawn and bishop notation should probably be resolved with classifying by syntax instead of throwing errors right away
         ##example: bxc4 could be a pawn move or a bishop move
@@ -582,13 +593,12 @@ while True:
             position=piece.Castle(pos,white,move)
         else:
             raise InvalidMoveError(move)
-        checks=(piece.King_check(position,True),piece.King_check(position,False))
+        checks=(piece.King_check(position,True),piece.King_check(position,False)) #check if king is in check
         if white and checks[0] or not white and checks[1]: 
-            raise IllegalMoveError(move)
+            raise IllegalMoveError(f"\033[33m {move} \033[0m"+f"\n\033[31mKing is in check\033[0m")
         
         board=Display(position)
         old_pos=np.copy(pos)
-        old_kings=kings[:]
         old_en_passant=en_passant[:]
         pos=position
         
@@ -596,6 +606,6 @@ while True:
     # finally:
     #     pass
     except Exception as e:
-        print(f"Error: {e}")
+        # print(f"Error: {e}")
         print(traceback.format_exc())
         input("press any key to continue...")

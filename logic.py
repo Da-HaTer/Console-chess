@@ -1,7 +1,7 @@
 class InvalidMoveError(Exception):
     def __init__(self, message, errors=None):            
         # Call the base class constructor with the parameters it needs
-        print("Invalid move Syntax :",message)
+        print("\033[31mInvalid Move: \033[0m", message)
         super().__init__(message)
         # Now for your custom code...
         self.errors = errors
@@ -9,14 +9,14 @@ class InvalidMoveError(Exception):
 class IllegalMoveError(Exception):
     def __init__(self, message, errors=None):            
         # Call the base class constructor with the parameters it needs
-        print("Illegal Move: ", message)
+        print("\033[33mIllegal Move: \033[0m", message)
         super().__init__(message)
         # Now for your custom code...
         self.errors = errors
 class ambigousMoveError(Exception):
     def __init__(self, message, errors=None):            
         # Call the base class constructor with the parameters it needs
-        print("Ambigous Move: ", message)
+        print("\033[33mAmbigous Move: \033[0m", message)
         super().__init__(message)
         # Now for your custom code...
         self.errors = errors

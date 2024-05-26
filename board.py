@@ -12,8 +12,9 @@ class Board:
             ['p','p','p','p','p','p','p','p'],
             ['r','n','b','q','k','b','n','r']
         ])
-    def __init__(self):
+    def __init__(self,pos=start_board):
         self.board_position = self.start_board
+        
     def setboard(self,board=start_board):
         self.board_position = board
 
