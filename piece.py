@@ -429,15 +429,15 @@ class ChessPiece:
                     raise IllegalMoveError(move)
         return new_pos
 
-    def Checkmate(self,board,white,kingpos=None):
+    def Checkmate(self,board,white,draw,kingpos=None):
         Checkmate=True
         def interpolate(start,end):
             i,j=start
             k,l=end
-            if i==k:
-                return [(i,m) for m in range(j,l)]
-            elif j==l:
-                return [(m,j) for m in range(i,k)]
+            if i==k: #horizontal
+                return [(i,m) for m in range(min(j,l),max(j,l))]
+            elif j==l: #vertical
+                return [(m,j) for m in range(min(i,k),min(i,k))]
             elif abs(k-i)==abs(l-j):
                 return [(i+m,j+m) for m in range(1,abs(k-i))]
             else:
@@ -446,7 +446,7 @@ class ChessPiece:
         king_kernel=[(1,0),(-1,0),(0,1),(0,-1),(1,1),(-1,-1),(-1,1),(1,-1)]
         symbol="k" if white else "K"
         friendlies="pbnrq" if white else "PBNRQ"
-        if kingpos is None:
+        if kingpos is None: #get king position
             for i in range(8):
                 for j in range(8):
                     if board[i,j]==symbol:
@@ -454,30 +454,34 @@ class ChessPiece:
                         break
         checks=self.King_check(board,white,kingpos)
         if not checks:
+            # input("no checks")
             return False
-        for move in king_kernel:
-            square=kingpos[0]+move[0],kingpos[1]+move[1]
-            if not self.boundries(square) or board[square[0],square[1]] in friendlies: #capture own pieces
+        for move in king_kernel: #if can move
+            square=(kingpos[0]+move[0],kingpos[1]+move[1])
+            if not self.boundries(square[0],square[1]) or board[square[0],square[1]] in friendlies: #invalid square or capture own pieces
                 continue
-            if self.King_check(board,white,square):
+            elif self.King_check(board,white,square):#moving into check
                 continue
-            else: # can move or capture with move
+            else:
+                # input("can move")
                 return False
         
-        if len(checks)>1: # double check and can't move anywhere
-            return True
         else:
-            attacker=checks[0]
+            attacker=self.c2i(checks[0])
             for square in interpolate(kingpos,attacker):
                 for symbol in "brq" if white else "BRQ":
                     if self.Ranged_DFS(board,square[0],square[1],symbol,[(1,0),(-1,0),(0,1),(0,-1)]):
                         return False
+                        # input("piece can capture")
                 symbol="n" if white else "N"
                 if self.Instant_DFS(board,square[0],square[1],symbol,[(1,2),(1,-2),(2,1),(2,-1),(-1,2),(-1,-2),(-2,1),(-2,-1)]):
                     return False
+                    # input("knight can capture")
                 symbol="p" if white else "P"
                 if self.Instant_DFS(board,square[0],square[1],symbol,[(1,1),(-1,-1),(-1,1),(1,-1)]):
                     return False
+                    # input("pawn can capture")
+        # input("checkmate")
         return Checkmate
             
 
@@ -516,9 +520,16 @@ white=True
 highlight=None
 en_passant=[None,None]
 old_en_passant=[None,None]
+checkmate=False
+moves=[]
 while True:
     piece=ChessPiece('w',start_board)
     board=Display(pos)
+    if piece.Checkmate(pos,white,False):
+        checkmate=True
+        if moves:
+            moves[-1]=moves[-1]+"#"
+        input("\033[31mCheckmate\033[0m")
     checks=(piece.King_check(pos,True),piece.King_check(pos,False))
     if white:
         en_passant[0]=None
@@ -535,9 +546,10 @@ while True:
     # sleep(1)
     w='\033[1m'+"white"+'\033[0m' # bold repr
     print(f'{ w if white else board.colored("black")} to play')
-    print("Kings pos:",f"{piece.i2c(kings[0])} {piece.i2c(kings[1])}")
-    print("Old Kings pos:",f"{piece.i2c(old_kings[0])} {piece.i2c(old_kings[1])}")
+    # print("Kings pos:",f"{piece.i2c(kings[0])} {piece.i2c(kings[1])}")
+    # print("Old Kings pos:",f"{piece.i2c(old_kings[0])} {piece.i2c(old_kings[1])}")
     move=input("Enter move: ( [move]|back|skip|reset|[Get/Set] FEN )\n")
+    
 
     if move=="q":
         break
@@ -546,6 +558,7 @@ while True:
         kings=old_kings
         en_passant=old_en_passant
         white=not white
+        checkmate=False
         continue
     elif move=="skip":
         white=not white
@@ -567,6 +580,8 @@ while True:
         continue
     old_kings=kings[:]
     try:
+        if move !="back" and move!="reset" and checkmate:
+            raise IllegalMoveError("Checkmate")
         ### conflict between b pawn and bishop notation should probably be resolved with classifying by syntax instead of throwing errors right away
         ##example: bxc4 could be a pawn move or a bishop move
         ## solution: bishop: capital letter, pawn: small letter b
