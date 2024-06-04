@@ -27,7 +27,7 @@ class Display:
             self.highlight=[]
         else:   
             self.highlight+=highlights
-        print("highlights",highlights)
+        # print("highlights",highlights)
         self.Draw_board(self.board,self.highlight)
 
     def colored(self,text,color=None):
