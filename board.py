@@ -1,5 +1,6 @@
 
 import numpy as np
+import re
 
 class Board:
     start_board= np.array([
@@ -61,6 +62,7 @@ class Board:
         return fen
 
     def pgn_to_moves(self,pgn): ## move to utils 
+        pgn =re.sub(r'\{.*?\}\s', '', pgn)
         pgn = pgn.split(' ')
         moves = []
         for i in pgn:
@@ -68,6 +70,13 @@ class Board:
                 continue
             moves.append(i)
         return moves
+    def Moves_to_Pgn(self,moves):
+        s=""
+        i=0
+        while i<len(moves)-1:
+            s+=str(i//2+1)+". "+moves[i]+" "+moves[i+1]+" "
+            i+=2
+        return s
 if __name__=='__main__':
 
     board=Board()
