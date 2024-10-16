@@ -1,6 +1,13 @@
 from time import sleep
-from os import system
+import os 
 import numpy as np
+
+
+def clear_screen():
+    if os.name == 'nt':  # For Windows
+        os.system('cls')
+    else:  # For Unix-based systems (Linux, macOS, etc.)
+        os.system('clear')
 
 class Display:
     
@@ -68,8 +75,8 @@ class Display:
         if matrix is None:
             matrix = self.board
         d = self.d
-        sleep(0.2) # to slow down the display
-        system('cls')
+        sleep(0.2) # to slow down the display        
+        clear_screen()
         for i in 'ABCDEFGH':
             print(' ',i,end='')
         print('')
