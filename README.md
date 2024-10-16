@@ -8,5 +8,9 @@ A simple and creative chess game on console created for fun and test purposes.
 - [x] En passant 
 - [x] Promotions
 - [x] Castle
-- [ ] Stalemates
+- [ ] Draws
+  - [ ] stamemate
+  - [ ] 50 move
+  - [ ] 3 repetition
+  - [ ] insufficient material
 - [ ] Takebacks

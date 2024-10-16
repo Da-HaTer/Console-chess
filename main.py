@@ -14,16 +14,26 @@ class ChessGame:
         self.board = Board()
         self.white = True
         self.moves = []
+        self.positions=[self.board.matrix_to_fen(self.board.start_board,False)]
         self.game_end = False
 
 
-    def handle_user_input(self):
+    def handle_user_input(self): #unused for now
         ## Handle user input here
         # simple input for now
         pass
 
-    def update_game(self):
+    def update_game(self,piece,pos,white,board,moves,checkmate): #unused for now
         ## Update the game state here
+        if piece.Checkmate(pos,white,board):
+                checkmate=True
+                if moves:
+                    moves[-1]=moves[-1]+"#"
+                # print('moves :',moves)
+                print("\033[31mCheckmate\033[0m")
+                print("FEN :",Board().matrix_to_fen(pos,True))
+                print("PGN :", Board().Moves_to_Pgn(moves))
+                return checkmate
         #check if the game is over
         #check if the king is in check
         #check if the move is valid
@@ -37,30 +47,11 @@ class ChessGame:
         pass
 
     def game_loop(self):
-        # Game loop
-        start_board= np.array([
-        ['R','N','B','Q','K','B','N','R'],
-        ['P','P','P','P','P','P','P','P'],
-        ['','','','','','','',''],
-        ['','','','','','','',''],
-        ['','','','','','','',''],
-        ['','','','','','','',''],
-        ['p','p','p','p','p','p','p','p'],
-        ['r','n','b','q','k','b','n','r']])
-        
-        empty_board= np.array([
-        ['','','','','K','','',''],
-        ['','p','','','','','',''],
-        ['','','','','','','',''],
-        ['','','','','','','',''],
-        ['','','','','','','',''],
-        ['','','','','','','',''],
-        ['','','','','','','',''],
-        ['','','','','k','','','']])
-        
+        # Game loop       
+        start_board=self.board.start_board 
         pgn="1. d4 d5 2. Bg5 { D00 Queen's Pawn Game: Levitsky Attack } Nf6 3. Bxf6 gxf6 4. Nd2 e6 5. e4 c5 6. exd5 Qxd5 7. Ndf3 Nc6 8. c3 cxd4 9. cxd4 Bb4+ 10. Ke2 Qe4# { Black wins by checkmate. } 0-1"
         # pgn =re.sub(r'\{.*?\}\s', '', pgn) #remove comments
-        premoves=Board().pgn_to_moves(pgn)
+        premoves=self.board.pgn_to_moves(pgn) #Autoplay moves (faster without gui)
         premoves=[]
         i=0
         gui=True
@@ -159,9 +150,10 @@ class ChessGame:
             try:
                 if move !="back" and move!="reset" and checkmate:
                     raise IllegalMoveError("Checkmate")
-                ### conflict between b pawn and bishop notation should probably be resolved with classifying by syntax instead of throwing errors right away
-                ##example: bxc4 could be a pawn move or a bishop move
-                ## solution: bishop: capital letter, pawn: small letter b
+                if move=="":
+                    continue
+                if move.lower() == "exit":
+                    break
                 if move[0] in 'abcdefgh':  
                     t=piece.pawn_move2(white,pos,move,en_passant)
                     position=t[0]
@@ -189,7 +181,6 @@ class ChessGame:
                 if white and checks[0] or not white and checks[1]: 
                     raise IllegalMoveError(f"\033[33m {move} \033[0m"+f"\n\033[31mKing is in check: {checks}\033[0m")
                 
-                # board=Display(position)
                 old_pos=np.copy(pos)
                 old_en_passant=en_passant[:]
                 pos=position
@@ -198,10 +189,7 @@ class ChessGame:
                 else:
                     moves.append((move[0].upper()+move[1:].lower()))
                 white=not white
-            # finally:
-            #     pass
             except Exception as e:
-                # print(f"Error: {e}")
                 print(traceback.format_exc())
                 print("fen :",Board().matrix_to_fen(old_pos,False))
                 input("press any key to continue...")

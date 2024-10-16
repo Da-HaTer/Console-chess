@@ -95,9 +95,9 @@ class ChessPiece:
         found=[]
         direction=1 if white else -1
         en_passant=ep[1] if white else ep[0]
-        pawn_kernel=[]# simple move
+        pawn_kernel=[]
         if  pos[i,j]=="": #pawn found
-            pawn_kernel+=[(direction,0)]
+            pawn_kernel+=[(direction,0)]# simple move
         if (i==4 and white) or (i==3 and not white) and pos[i,j]=='' : # double move
             pawn_kernel+=[(2*direction,0)]
         if  (white and pos[i,j] in ('B','P','N','R','Q') ) or (not white and pos[i,j] in ('b','p','n','r','q')): #capture move
@@ -134,6 +134,52 @@ class ChessPiece:
         #     display.Highlight()
         return [self.i2c(square) for square in found]
 
+    def Reverse_Pawn_Dfs(self,pos,i,j,white,ep=[None,None],early_exit=False): # returns all moves that this pawn can make
+        #i,j= position of pawn
+        friends=('b','p','n','r','q') if white else ('B','P','N','R','Q')
+        foes=('b','p','n','r','q') if not white else ('B','P','N','R','Q')
+        symbol="p" if white else "P"
+        found=[]
+        direction=1 if white else -1
+        en_passant=ep[1] if white else ep[0] #pawn tha has en passant state
+        if self.boundries(i+direction,j) and pos[i+direction,j]=="": # simple move
+            if early_exit:
+                return True
+            found.append((i+direction,j))
+        if self.boundries(i+direction,j+1) and pos[i+direction,j+1] in foes:#diagonal capture
+            if early_exit:
+                return True
+            found.append((i+direction,j+1))
+        if self.boundries(i+direction,j-1) and pos[i+direction,j-1] in foes:#diagonal capture
+            if early_exit:
+                return True
+            found.append((i+direction,j-1))
+        if white and i==6 and pos[i-2,j]=="": #two square move
+            if early_exit:
+                return True
+            found.append((i-2,j))
+        if not white and i==1 and pos[i+2,j]=="": #two square move
+            if early_exit:
+                return True
+            found.append((i+2,j))
+        if en_passant:
+            if white and i==3 and self.boundries(3,j+1) and (3,j+1)==en_passant:
+                if early_exit:
+                    return True
+                found.append((2,j+1))
+            elif white and i==3 and self.boundries(3,j-1) and (3,j-1)==en_passant:
+                if early_exit:
+                    return True
+                found.append((2,j-1))
+            elif not white and i==4 and self.boundries(4,j+1) and (4,j+1)==en_passant:
+                if early_exit:
+                    return True
+                found.append((5,j+1))
+            elif not white and i==4 and self.boundries(4,j-1) and (4,j-1)==en_passant:
+                if early_exit:
+                    return True
+                found.append((5,j-1))
+        return found #return all possible moves (squares)
 
     def get_new_pos(self,move,position,white,symbol,ambiguous,kernel,short_range=False): #used for all pieces except pawns
         new_pos=position.copy()
@@ -397,10 +443,11 @@ class ChessPiece:
             # input("queen check")
         return (checks) # all checking squares and position of the king
     
-    def Castle(self,board,white,move):
+    def Castle(self,board,white,move): #if path not blocked, not in check, not gonna move through check, not gonna end up in check
+        ### todo: check for king or rook moves that prevent castle
         new_pos=board.copy()
         if not white:
-            if move=="O-O":
+            if move=="O-O": 
                 if new_pos[0,5]=='' and new_pos[0,6]==''and not self.King_check(new_pos,white,(0,4)) and not self.King_check(new_pos,white,(0,5)) and not self.King_check(new_pos,white,(0,6)):
                     new_pos[0,5]='R'
                     new_pos[0,6]='K'
@@ -435,7 +482,7 @@ class ChessPiece:
                     raise IllegalMoveError(move)
         return new_pos
 
-    def Checkmate(self,board,white,draw=None,kingpos=None):
+    def Checkmate(self,board,white,draw=None,kingpos=None): #draw is a Display object
         debug=False
         Checkmate=True
         def interpolate(start,end):
@@ -518,9 +565,49 @@ class ChessPiece:
 
         #check if any other piece can block the check
 
-    def Stalemate():
-        pass
+    def Valid_moves(self,board,white,position,en_passant=None):
+        symbol=board[position]
+        if symbol in ('p','P'):
+            moves=self.Reverse_Pawn_Dfs(board,position[0],position[1],white,en_passant,True) #all possible squares that this pawn can move to
+            #for move in moves:
+                #if valid move (no check or (illegal move ?(check)))
+                    #RETURN FALSE
+        elif symbol in ('n','N'):
+            pass
+            #if not pinned:
+                #iterate 
+                    #if can move
+                    #RETURN FALSE
+        elif symbol.lower() in ("r","b","q"): #rook, bishop, queen
+            pass
+            #if pinned :
+                # if direction in kernel (can move within pin diagobal/ file/ rank)
+                    #for move in (kernel ∩ direction)
+                        #if can move
+                        #Return FALSE
+            #else (not pinned)
+                #iterate
+                    #if can move
+                    #RETURN FALSE
+        else: #king
+            pass
+            #if can move: (reuse from checkmate) - unified function ? 
+                #RETURN FALSE
+                    
+                    
+
+    def Stalemate(self,board,white,en_passant=None):
+        pieces=('b','p','n','r','q') if white else ('B','P','N','R','Q')
+        for i in range(8):
+            for j in range(8):
+                for piece in pieces:
+                    if board[i,j]==piece:
+                        moves=self.Valid_moves(board,white,(i,j),en_passant)###
+                        # if piece.lower()=="p":#pawn
+                        if moves:
+                            return False
         #check if any piece can move one by one, test en passant
+
 if __name__=="__main__":
     start_board= np.array([
         ['R','N','B','Q','K','B','N','R'],
