@@ -140,7 +140,7 @@ class ChessPiece:
         foes=('b','p','n','r','q') if not white else ('B','P','N','R','Q')
         symbol="p" if white else "P"
         found=[]
-        direction=1 if white else -1
+        direction=1 if not white else -1
         en_passant=ep[1] if white else ep[0] #pawn tha has en passant state
         if self.boundries(i+direction,j) and pos[i+direction,j]=="": # simple move
             if early_exit:
@@ -154,11 +154,11 @@ class ChessPiece:
             if early_exit:
                 return True
             found.append((i+direction,j-1))
-        if white and i==6 and pos[i-2,j]=="": #two square move
+        if white and i==6 and pos[i-2,j]=="" and pos[i-1,j]=="": #two square move
             if early_exit:
                 return True
             found.append((i-2,j))
-        if not white and i==1 and pos[i+2,j]=="": #two square move
+        if not white and i==1 and pos[i+2,j]=="" and pos[i+1,j]=="": #two square move
             if early_exit:
                 return True
             found.append((i+2,j))
@@ -565,11 +565,15 @@ class ChessPiece:
 
         #check if any other piece can block the check
 
-    def Valid_moves(self,board,white,position,en_passant=None):
-        symbol=board[position]
+    def Valid_moves(self,pos,board,white,position,en_passant=None):
+        symbol=pos[position]
         if symbol in ('p','P'):
-            moves=self.Reverse_Pawn_Dfs(board,position[0],position[1],white,en_passant,True) #all possible squares that this pawn can move to
-            #for move in moves:
+            board.Highlight(position)
+            moves=self.Reverse_Pawn_Dfs(pos,position[0],position[1],white,en_passant,False) #all possible squares that this pawn can move to
+            print(moves)
+            input()
+            # sleep(0.5)
+            board.Highlight(moves)
                 #if valid move (no check or (illegal move ?(check)))
                     #RETURN FALSE
         elif symbol in ('n','N'):
@@ -596,13 +600,13 @@ class ChessPiece:
                     
                     
 
-    def Stalemate(self,board,white,en_passant=None):
+    def Stalemate(self,pos,board,white,en_passant=None):
         pieces=('b','p','n','r','q') if white else ('B','P','N','R','Q')
         for i in range(8):
             for j in range(8):
                 for piece in pieces:
-                    if board[i,j]==piece:
-                        moves=self.Valid_moves(board,white,(i,j),en_passant)###
+                    if pos[i,j]==piece:
+                        moves=self.Valid_moves(pos,board,white,(i,j),en_passant)###
                         # if piece.lower()=="p":#pawn
                         if moves:
                             return False
@@ -632,7 +636,7 @@ if __name__=="__main__":
     pgn =re.sub(r'\{.*?\}\s', '', pgn) #remove comments
     from board import Board
     pgn=Board().pgn_to_moves(pgn)
-    # pgn=[]
+    pgn=[]
     i=0
     gui=True
     old_pos=start_board
@@ -648,6 +652,7 @@ if __name__=="__main__":
     while True:
         piece=ChessPiece('w',start_board)
         board=Display(pos) if gui else None
+        piece.Stalemate(pos,board,white,en_passant)
         if piece.Checkmate(pos,white,board):
             checkmate=True
             if moves:
