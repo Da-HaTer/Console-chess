@@ -1,75 +1,83 @@
 from time import sleep
-from os import system
+import os
+from board import Board
 import numpy as np
 
-class Display:
-    
-    def __init__(self,board=None,theme="green",highlight=None):
-        if board is None:
-            self.board = np.array(['']*64).reshape(8,8)
-        else:
-            self.board = board
-        self.theme=theme
-        self.d = self.piece_to_symbol() #dictionary to convert piece to symbol
-        highlight= [] if highlight is None else highlight
-        self.highlight=[(highlight)] if type(highlight)==tuple else highlight
-        self.Draw_board(board,self.highlight)
-    
-    def settheme(self,theme):
-        self.theme=theme
-        self.d = self.piece_to_symbol() #update the dictionary
-        self.Draw_board(self.board,self.highlight)
-    
-    def Highlight(self,highlights=None):
-        highlights = [] if highlights is None else highlights
-        highlights=[(highlights)] if type(highlights)==tuple else highlights
-        if len(highlights)==0:
-            self.highlight=[]
-        else:   
-            self.highlight+=highlights
-        # print("highlights",highlights)
-        self.Draw_board(self.board,self.highlight)
 
-    def colored(self,text,color=None):
-        if color==None:
-            color=self.theme
-        if text=='⬜':
-            if color=='red':
-                return '🟥'
-            elif color=='green':
-                return '🟩'
-            elif color=='blue':
-                return '🟦'
-            elif color=='yellow':
-                return '🟨'
-            elif color=='purple':
-                return '🟪'
+def colored(text,color=None):
+    if color==None:
+        color="red"
+    if text=='⬜':
         if color=='red':
-            return '\033[31m'+text+'\033[0m'
+            return '🟥'
         elif color=='green':
-            return '\033[32m'+text+'\033[0m'
+            return '🟩'
         elif color=='blue':
-            return '\033[34m'+text+'\033[0m'
+            return '🟦'
         elif color=='yellow':
-            return '\033[33m'+text+'\033[0m'
+            return '🟨'
         elif color=='purple':
-            return '\033[35m'+text+'\033[0m'
+            return '🟪'
+    if color=='red':
+        return '\033[31m'+text+'\033[0m'
+    elif color=='green':
+        return '\033[32m'+text+'\033[0m'
+    elif color=='blue':
+        return '\033[34m'+text+'\033[0m'
+    elif color=='yellow':
+        return '\033[33m'+text+'\033[0m'
+    elif color=='purple':
+        return '\033[35m'+text+'\033[0m'
+class Display():
+    
+    def __init__(self,board:Board=None,last_move:tuple[tuple[int]]=None, checks:tuple[tuple[int]]=None ,highlights:tuple[any]=None,theme:dict={"main":"green","check":"red","last_move":"yellow","highlight":"blue"}):
+        self.board=board if board is not None else Board()
+        self.theme=theme #main,check,last_move,highlight colors
+        self.d = self.piece_to_symbol() #dictionary to convert piece to symbol
+        
+        self.last_move= [] if last_move is None else last_move #last move (from to squares) #yellow
+        self.highlights= [] if highlights is None else highlights #manual highlights squares #blue
+        self.check = [] if checks is None else checks # checked king and attacker if in check #red
+        ###
+        # self.highlights=[(highlights)] if type(highlights)==tuple else self.highlights
+        # self.last_move=[(last_move)] if type(last_move)==tuple else self.last_move
+        # self.check=[(checks)] if type(checks)==tuple else self.check
 
-    def piece_to_symbol(self):
+        self.Draw_board()
+
+    def piece_to_symbol(self) -> dict:
+        """Returns a dictionary to convert piece characters to chess symbols for display on the board
+        """
         symbols=['♔','♕','♖','♗','♘','♙',
                  '♚','♛','♜','♝','♞','♟']
         pieces=['K','Q','R','B','N','P','k','q','r','b','n','p']
         d=dict()
         for i in range(12):
-            d[pieces[i]]=symbols[i]+' '
+            d[pieces[i]]=symbols[i]+' ' ###To test on linux and other kernels
         return d
+    def settheme(self,theme:dict={"main":"green","check":"red","last_move":"yellow","highlight":"blue"}) -> None:
+        self.theme=theme
+        self.d = self.piece_to_symbol() #update the dictionary ###what happens if we don't
+        self.Draw_board()
     
-    def Draw_board(self,matrix=None,highlight=None):
+    def Highlight(self,highlights:list=None)->None:
+        # highlights = [] if highlights is None else highlights
+        # highlights=[(highlights)] if type(highlights)==tuple else highlights
+        if highlights is None or len(highlights)==0:
+            self.highlights=[] 
+        else:
+            highlights= tuple(highlights)
+            self.highlights+=(highlights,)
+        # print("highlights",highlights)
+        self.Draw_board()
+
+    def Draw_board(self,matrix=None):
         if matrix is None:
-            matrix = self.board
+            matrix = self.board[:]
         d = self.d
-        sleep(0.2) # to slow down the display
-        system('cls')
+
+        ### sleep(0.2) # to slow down the display
+        os.system('cls' if os.name == 'nt' else 'clear')
         for i in 'ABCDEFGH':
             print(' ',i,end='')
         print('')
@@ -79,20 +87,27 @@ class Display:
             print(8-i,end='')
             print('|',end='')
             for j in range(8):
-                if matrix[i,j]=='':
-                    if (i,j) in highlight:
-                        print(self.colored('⬜',"red"),end='|')
+                if matrix[i,j]=='': # empty square
+
+                    if (i,j) in self.highlights:
+                        print(colored('⬜',self.theme["highlight"]),end='|')
+                    elif (i,j) in self.last_move:
+                        print(colored('⬜',self.theme["last_move"]),end='|')
                     elif (i+j)%2==0:
                         print("  ",end='|')
                     else:
                         print("  ",end='|')
-                else:
-                    if (i,j) in highlight:
-                        print(self.colored(d[matrix[i,j][0]],"red"),end='|')
+                else: #piece
+
+                    if self.highlights and (i,j) in self.highlights:
+                        print(colored(d[matrix[i,j][0]],self.theme["highlight"]),end='|')
+                    elif (i,j) in self.check:
+                        print(colored(d[matrix[i,j][0]],self.theme["check"]),end='|')
+                    elif (i,j) in self.last_move:
+                        print(colored(d[matrix[i,j][0]],self.theme["last_move"]),end='|')
                     else:
                         if matrix[i,j] in ('QRBNPK'):
-
-                            print(self.colored(d[matrix[i,j][0]]),end='|')
+                            print(colored(d[matrix[i,j][0]],self.theme["main"]),end='|')
                         else: 
                             print(d[matrix[i,j]],end='|')
             print()
@@ -101,20 +116,16 @@ class Display:
     
 if __name__ == "__main__":
     import numpy as np
-    board=np.array([
-            ['R','N','B','Q','K','B','N','R'],
-            ['P','P','P','P','P','P','P','P'],
-            ['','','','','','','',''],
-            ['','','','','','','',''],
-            ['','','','','','','',''],
-            ['','','','','','','',''],
-            ['p','p','p','p','p','p','p','p'],
-            ['r','n','b','q','k','b','n','r']
-        ])
-    display = Display(board,"green")
-    
+    board=Board()
+    checks=((7,4),(0,0))
+    last_move=((2,1),(3,1))
+    highlights=((2,3),(3,4),(4,5),(5,6))
+    display=Display(board,last_move,checks,highlights)
+    # display = Display(board,"green")
     for i in range(8):
         display.Highlight((i,i))
     sleep(3)
     ### add highlight color to theme preferences
-    display.settheme("blue")
+    theme={"main":"purple","check":"red","last_move":"yellow","highlight":"green"}
+    display.Highlight()
+    display.settheme(theme)

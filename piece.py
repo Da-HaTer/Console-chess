@@ -6,7 +6,7 @@ from logic import Logic
 from logic import IllegalMoveError, InvalidMoveError, ambigousMoveError
 from draw import Display
 import traceback
-class ChessPiece:
+class Piece:
     def __init__(self,color,position,type="p",enpassant=False):
         self.color = color
         #color= w, b
@@ -438,16 +438,18 @@ class ChessPiece:
     def Checkmate(self,board,white,draw=None,kingpos=None):
         debug=False
         Checkmate=True
-        def interpolate(start,end):
+        def interpolate(start:tuple[int,int],end:tuple[int,int]): ### to be fixed : wrong
+            """Returns all squares between two points on the board
+            """
             i,j=start
             k,l=end
             if i==k: #horizontal
                 return [(i,m) for m in range(min(j,l),max(j,l))]
             elif j==l: #vertical
-                return [(m,j) for m in range(min(i,k),min(i,k))]
-            elif abs(k-i)==abs(l-j):
+                return [(m,j) for m in range(min(i,k),max(i,k))]
+            elif abs(k-i)==abs(l-j): #on same diagonal (slope=1)
                 return [(i+m,j+m) for m in range(1,abs(k-i))]
-            else:
+            else: 
                 return [(i+m,j+n) for m in range(1,abs(k-i)) for n in range(1,abs(l-j)) if abs(k-i)==abs(l-j) and m==n]
             
         king_kernel=[(1,0),(-1,0),(0,1),(0,-1),(1,1),(-1,-1),(-1,1),(1,-1)]
@@ -482,8 +484,8 @@ class ChessPiece:
             else:
                 # input("can move")
                 return False
-        else:
-            attacker=self.c2i(checks[0])
+        else: #can pieces block or capture
+            attacker=self.c2i(checks[0]) ### 
             for square in interpolate(kingpos,attacker):
                 for symbol in "brq" if white else "BRQ":
                     if symbol in ('r','R'):
@@ -511,9 +513,6 @@ class ChessPiece:
         # input("checkmate")
         return Checkmate
             
-
-
-
         #check if king can get out check
 
         #check if any other piece can block the check
@@ -559,7 +558,7 @@ if __name__=="__main__":
     checkmate=False
     moves=[]
     while True:
-        piece=ChessPiece('w',start_board)
+        piece=Piece('w',start_board)
         board=Display(pos) if gui else None
         if piece.Checkmate(pos,white,board):
             checkmate=True
