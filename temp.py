@@ -129,12 +129,54 @@ def Pawn_DFS(self,board:State,pos:tuple[int,int],early_exit=False):
         #### TO BE TESTED
         return found #return all possible moves (squares)
     
-def Ranged_DFS(board:State,post:tuple[int,int],early_exit=False):
+def Ranged_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[any]:
     """Returns all possible moves of a ranged piece on the board
     Rook, Bishop, Queen
     """
-    
-def all_moves(board:State,pos:tuple[int,int],early_exit:bool=False)->list[any]:
+    i,j=pos
+    friends,foes=('b','p','n','r','q','k'),('B','P','N','R','Q','K')
+    friends,foes=(friends,foes) if board.white else (foes,friends)
+    moves_kernel=[]###replace with kernel
+    found=[]
+    for move in moves_kernel: # for direction
+        for k in range(1,8): 
+            if 0<=i+k*move[0]<8 and 0<=j+k*move[1]<8: #within bounds
+                square=board[i+k*move[0],j+k*move[1]]
+                if square in friends:
+                    break # next direction
+                elif square in foes or square =="": #can move or capture
+                    if can_move(board,pos,(i+k*move[0],j+k*move[1])):
+                        if early_exit:
+                            return True
+                        found.append((i+k*move[0],j+k*move[1]))
+                    break
+            else:
+                break # out of bounds search next direction
+
+    return [i2c(square) for square in found]
+
+def Instant_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[any]:
+    """Returns all possible moves of an instant piece on the board
+    Knight, King
+    """
+    i,j=pos
+    friends,foes=('b','p','n','r','q','k'),('B','P','N','R','Q','K')
+    friends,foes=(friends,foes) if board.white else (foes,friends)
+    moves_kernel=[]###replace with kernel
+    found=[]
+    for move in moves_kernel: # for direction
+        if 0<=i+move[0]<8 and 0<=j+move[1]<8: #within bounds
+            square=board[i+move[0],j+move[1]]
+            if square in friends:
+                break # next direction
+            elif square in foes or square =="": #can move or capture
+                if can_move(board,pos,(i+move[0],j+move[1])):
+                    if early_exit:
+                        return True
+                    found.append((i+move[0],j+move[1]))
+    return [i2c(square) for square in found] 
+   
+def piece_moves(board:State,pos:tuple[int,int],early_exit:bool=False)->list[any]:
     """Returns all possible moves of a piece on the board
     """
     i,j=pos
