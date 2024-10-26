@@ -1,7 +1,7 @@
-from board import Board
+from board import State
 from piece import Piece
 
-class State(Board,Piece):
+class State(State,Piece):
     def __init__(self,):
         
 

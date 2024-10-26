@@ -1,7 +1,7 @@
 
 import numpy as np
 import re
-class Board:
+class State:
     start_board= np.array([
             ['R','N','B','Q','K','B','N','R'],
             ['P','P','P','P','P','P','P','P'],
@@ -12,14 +12,19 @@ class Board:
             ['p','p','p','p','p','p','p','p'],
             ['r','n','b','q','k','b','n','r']
         ])
-    def __init__(self,board:np.ndarray=None,white:bool=True,castle:str='-',en_passant:str='-',halfmove_count:int =0 ,fullmove_count:int =0):
+    def __init__(self,board:np.ndarray=None,white:bool=True,castle:str='-',en_passant:str='-',halfmove_count:int =0 ,fullmove_count:int =0,kings_pos:tuple[int,int,int,int]=None) -> None:
         if board is None:
             self.board_position = self.start_board
+        if kings_pos is None:
+            kings_pos=self.get_kings_pos()
+        
         self.white=white
         self.castle=castle
         self.en_passant=en_passant
         self.halfmove_count=halfmove_count
         self.fullmove_count=fullmove_count
+        self.kings_pos=kings_pos
+        
     
     def __eq__(self, board:object) -> bool:
         return self.board==board[:]
@@ -31,6 +36,18 @@ class Board:
 
     def setboard(self,board=start_board):
         self.board_position = board
+    
+    def get_kings_pos(self):
+        pos=[-1,-1,-1,-1]
+        for i in range(8):
+            for j in range(8):
+                if self.board_position[i,j]=='k':
+                    pos[0],pos[1]=(i,j)
+                if self.board_position[i,j]=='K':
+                    pos[2],pos[3]=(i,j)
+                if pos[0]>-1 and pos[2]>-1:
+                    return tuple(pos)
+
 
     def get_fen(self) -> str:
         en_passant=self.en_passant if self.en_passant is not None else '-'
@@ -111,7 +128,7 @@ class Board:
 
 if __name__=='__main__':
     ##TESTS
-    board=Board()
+    board=State()
     # fen test
     fen="q3kb1r/1p2pppp/5n2/2rp4/3Q1B2/4PN2/P1n2PPP/R3K2R w KQk - 0 14"
     # newboard=board.fen_to_matrix(fen)
@@ -122,7 +139,6 @@ if __name__=='__main__':
     print(board[:])
     board[0,:]="a"
     print(board[:])
-
     # reset board tests
     board.setboard()
     board.randomize_board_dirty()

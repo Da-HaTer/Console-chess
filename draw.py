@@ -1,6 +1,6 @@
 from time import sleep
 import os
-from board import Board
+from board import State
 import numpy as np
 
 
@@ -30,8 +30,8 @@ def colored(text,color=None):
         return '\033[35m'+text+'\033[0m'
 class Display():
     
-    def __init__(self,board:Board=None,last_move:tuple[tuple[int]]=None, checks:tuple[tuple[int]]=None ,highlights:tuple[any]=None,theme:dict={"main":"green","check":"red","last_move":"yellow","highlight":"blue"}):
-        self.board=board if board is not None else Board()
+    def __init__(self,board:State=None,last_move:tuple[tuple[int]]=None, checks:tuple[tuple[int]]=None ,highlights:tuple[any]=None,theme:dict={"main":"green","check":"red","last_move":"yellow","highlight":"blue"}):
+        self.board=board if board is not None else State()
         self.theme=theme #main,check,last_move,highlight colors
         self.d = self.piece_to_symbol() #dictionary to convert piece to symbol
         
@@ -116,7 +116,7 @@ class Display():
     
 if __name__ == "__main__":
     import numpy as np
-    board=Board()
+    board=State()
     checks=((7,4),(0,0))
     last_move=((2,1),(3,1))
     highlights=((2,3),(3,4),(4,5),(5,6))

@@ -1,11 +1,35 @@
 import numpy as np
 import regex as re
 from time import sleep
-from board import Board
+from board import State
 from logic import Logic
 from logic import IllegalMoveError, InvalidMoveError, ambigousMoveError
 from draw import Display
 import traceback
+
+
+def interpolate(start:tuple[int,int],end:tuple[int,int]) ->list[tuple[int,int]]:
+    """Returns all squares between two points on the board (exclusive)
+    """
+    i,j=start
+    k,l=end
+    dy,dx=k-i,l-j
+    if i==k: #horizontal
+        rg=range(j+1,l) if dx>0 else range(j-1,l,-1)
+        return[(i,m) for m in rg]
+    elif j==l: #vertical
+        rg=range(i+1,k) if dy>0 else range(i-1,k,-1)
+        return [(m,j) for m in rg]
+    elif dy==dx: #diagonal with solpe=1
+        rg=range(1,abs(k-i)) 
+        dir=1 if dy>0 else -1
+        return [(i+m*dir,j+m*dir) for m in rg]
+    
+    elif dy==-dx: #diagonal with slope=-1
+        rg=range(1,abs(k-i)) 
+        dir=1 if dy>0 else -1
+        return [(i+m*dir,j-m*dir) for m in rg]
+    return []
 class Piece:
     def __init__(self,color,position,type="p",enpassant=False):
         self.color = color
@@ -30,6 +54,13 @@ class Piece:
             print(f"\033[31mchoose between {' '.join(unique)}\033[0m")
             raise ambigousMoveError(move)
         return unique[0] #return move
+
+    def pawn_moves(self,board,white,pos):
+        en_passant=board.en_passant
+        friends,foes= ["P","R","N","B","Q","K"],["p","r","n","b","q","k"]
+        friends,foes=foes,friends if white else friends,foes
+        start=1 if white else 6
+
 
     def c2i(self, pos): # notation to x,y coordinate
         i,j=8-int(pos[1]),ord(pos[0])-ord('a')
@@ -438,34 +469,18 @@ class Piece:
     def Checkmate(self,board,white,draw=None,kingpos=None):
         debug=False
         Checkmate=True
-        def interpolate(start:tuple[int,int],end:tuple[int,int]): ### to be fixed : wrong
-            """Returns all squares between two points on the board
-            """
-            i,j=start
-            k,l=end
-            if i==k: #horizontal
-                return [(i,m) for m in range(min(j,l),max(j,l))]
-            elif j==l: #vertical
-                return [(m,j) for m in range(min(i,k),max(i,k))]
-            elif abs(k-i)==abs(l-j): #on same diagonal (slope=1)
-                return [(i+m,j+m) for m in range(1,abs(k-i))]
-            else: 
-                return [(i+m,j+n) for m in range(1,abs(k-i)) for n in range(1,abs(l-j)) if abs(k-i)==abs(l-j) and m==n]
-            
         king_kernel=[(1,0),(-1,0),(0,1),(0,-1),(1,1),(-1,-1),(-1,1),(1,-1)]
         symbol="k" if white else "K"
         friendlies=('b','p','n','r','q') if white else ('B','P','N','R','Q')
         if kingpos is None: #get king position
-            for i in range(8):
-                for j in range(8):
-                    if board[i,j]==symbol:
-                        kingpos=(i,j)
-                        break
+            kingpos=tuple(np.argwhere(board==symbol)[0])
+        if not kingpos:
+            raise Exception("King not found!")
         checks=self.King_check(board,white,kingpos)
-        if not checks:
+        if not checks: #not in check
             # input("no checks")
             return False
-        for move in king_kernel: #if can move
+        for move in king_kernel: 
             square=(kingpos[0]+move[0],kingpos[1]+move[1])
             new_pos=board.copy()
             if not self.boundries(square[0],square[1]) or board[square[0],square[1]] in friendlies: #invalid square or capture own pieces
@@ -481,12 +496,14 @@ class Piece:
                     # sleep(1)
                     pass
                 continue
-            else:
-                # input("can move")
+            else: #if king can make a move
                 return False
         else: #can pieces block or capture
-            attacker=self.c2i(checks[0]) ### 
-            for square in interpolate(kingpos,attacker):
+            if len(checks)>1: #double check
+                #cannot be blocked or captured
+                return Checkmate
+            attacker=self.c2i(checks[0])
+            for square in interpolate(kingpos,attacker)+[attacker]: #exclusive interpolation
                 for symbol in "brq" if white else "BRQ":
                     if symbol in ('r','R'):
                         kernel=[(1,0),(-1,0),(0,1),(0,-1)]
@@ -542,8 +559,8 @@ if __name__=="__main__":
         ['','','','','k','','','']])
     pgn="1. d4 d5 2. Bg5 { D00 Queen's Pawn Game: Levitsky Attack } Nf6 3. Bxf6 gxf6 4. Nd2 e6 5. e4 c5 6. exd5 Qxd5 7. Ndf3 Nc6 8. c3 cxd4 9. cxd4 Bb4+ 10. Ke2 Qe4# { Black wins by checkmate. } 0-1"
     pgn =re.sub(r'\{.*?\}\s', '', pgn) #remove comments
-    from board import Board
-    pgn=Board().pgn_to_moves(pgn)
+    from board import State
+    pgn=State().pgn_to_moves(pgn)
     # pgn=[]
     i=0
     gui=True
@@ -623,12 +640,12 @@ if __name__=="__main__":
             highlight=None
             continue
         elif move.upper()=="GET FEN":
-            Board().matrix_to_fen(pos,True)
+            State().matrix_to_fen(pos,True)
             input("press any key to continue...")
             continue
         elif move.upper()=="SET FEN":
             fen=input("Enter FEN: ")
-            pos=Board().fen_to_matrix(fen)
+            pos=State().fen_to_matrix(fen)
             old_pos=pos
             continue
         elif move.upper()=="GET PGN":
@@ -683,5 +700,5 @@ if __name__=="__main__":
         except Exception as e:
             # print(f"Error: {e}")
             print(traceback.format_exc())
-            print("fen :",Board().matrix_to_fen(old_pos,False))
+            print("fen :",State().matrix_to_fen(old_pos,False))
             input("press any key to continue...")

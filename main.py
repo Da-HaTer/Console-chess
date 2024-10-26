@@ -1,10 +1,10 @@
-from board import Board
+from board import State
 from draw import Display
 from time import sleep
 import numpy as np
 # import re
 from piece import Piece
-from board import Board
+from board import State
 from logic import Logic
 from logic import IllegalMoveError, InvalidMoveError, ambigousMoveError
 from draw import Display
@@ -12,7 +12,7 @@ import traceback
 
 class ChessGame:
     def __init__(self):
-        self.board = Board()
+        self.board = State()
         self.states=[self.board]
         self.threefold=dict()
 
@@ -82,8 +82,8 @@ class ChessGame:
                     moves[-1]=moves[-1]+"#"
                 # print('moves :',moves)
                 print("\033[31mCheckmate\033[0m")
-                print("FEN :",Board().matrix_to_fen(pos,True))
-                print("PGN :", Board().Moves_to_Pgn(moves))
+                print("FEN :",State().matrix_to_fen(pos,True))
+                print("PGN :", State().Moves_to_Pgn(moves))
                 break
             checks=(piece.King_check(pos,True),piece.King_check(pos,False))
             if white:
@@ -142,12 +142,12 @@ class ChessGame:
                 highlight=None
                 continue
             elif move.upper()=="GET FEN":
-                Board().matrix_to_fen(pos,True)
+                State().matrix_to_fen(pos,True)
                 input("press any key to continue...")
                 continue
             elif move.upper()=="SET FEN":
                 fen=input("Enter FEN: ")
-                pos=Board().fen_to_matrix(fen)
+                pos=State().fen_to_matrix(fen)
                 old_pos=pos
                 continue
             elif move.upper()=="GET PGN":
@@ -202,7 +202,7 @@ class ChessGame:
             except Exception as e:
                 # print(f"Error: {e}")
                 print(traceback.format_exc())
-                print("fen :",Board().matrix_to_fen(old_pos,False))
+                print("fen :",State().matrix_to_fen(old_pos,False))
                 input("press any key to continue...")
 
 
