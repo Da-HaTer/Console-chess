@@ -33,7 +33,7 @@ def mat(d:dict)->str:
     return ' '.join([str(v)+k for k,v in d.items()])
 
 def can_move(board:State,frm:tuple[int,int],to:tuple[int,int],ep=None)->bool:
-    """Check if a move is legal (doesn't walk into check or stay in check) , doesn't check for invalid moves """
+    """Check if a move is legal (doesn't walk into check or stay in check) , doesn't check for invalid moves (format ) """
     new_pos=np.copy(board[:])
     new_pos[to]=new_pos[frm]
     new_pos[frm]=''
@@ -87,8 +87,7 @@ def LOOP(board:State): #check for checkmate, stalemate and insufficient material
         return("Insufficient material")
     return (None)
 
-
-def Pawn_DFS(self,board:State,pos:tuple[int,int],early_exit=False):
+def Pawn_DFS(self,board:State,pos:tuple[int,int],early_exit=False)->list[tuple[int,int]]:
         """ Returns all possible valid moves of a pawn on the board
         """
         white=board.white
@@ -129,14 +128,21 @@ def Pawn_DFS(self,board:State,pos:tuple[int,int],early_exit=False):
         #### TO BE TESTED
         return found #return all possible moves (squares)
     
-def Ranged_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[any]:
+def Ranged_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[int,int]]:
     """Returns all possible moves of a ranged piece on the board
     Rook, Bishop, Queen
     """
     i,j=pos
+    piece=board[i,j]
+    if piece.lower()=='r':
+        moves_kernel=[(0,1),(1,0),(0,-1),(-1,0)]
+    elif piece.lower()=='b':
+        moves_kernel=[(1,1),(-1,-1),(1,-1),(-1,1)]
+    elif piece.lower()=='q':
+        moves_kernel=[(0,1),(1,0),(0,-1),(-1,0),(1,1),(-1,-1),(1,-1),(-1,1)]
+
     friends,foes=('b','p','n','r','q','k'),('B','P','N','R','Q','K')
     friends,foes=(friends,foes) if board.white else (foes,friends)
-    moves_kernel=[]###replace with kernel
     found=[]
     for move in moves_kernel: # for direction
         for k in range(1,8): 
@@ -153,16 +159,21 @@ def Ranged_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[any]:
             else:
                 break # out of bounds search next direction
 
-    return [i2c(square) for square in found]
+    return [square for square in found]
 
 def Instant_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[any]:
     """Returns all possible moves of an instant piece on the board
     Knight, King
     """
     i,j=pos
+    piece=board[i,j]
+    if piece.lower()=='n':
+        moves_kernel=[(2,1),(2,-1),(-2,1),(-2,-1),(1,2),(1,-2),(-1,2),(-1,-2)]
+    elif piece.lower()=='k':
+        moves_kernel=[(0,1),(1,0),(0,-1),(-1,0),(1,1),(-1,-1),(1,-1),(-1,1)]
+
     friends,foes=('b','p','n','r','q','k'),('B','P','N','R','Q','K')
     friends,foes=(friends,foes) if board.white else (foes,friends)
-    moves_kernel=[]###replace with kernel
     found=[]
     for move in moves_kernel: # for direction
         if 0<=i+move[0]<8 and 0<=j+move[1]<8: #within bounds
@@ -174,10 +185,11 @@ def Instant_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[any]:
                     if early_exit:
                         return True
                     found.append((i+move[0],j+move[1]))
-    return [i2c(square) for square in found] 
+    return [square for square in found] 
    
 def piece_moves(board:State,pos:tuple[int,int],early_exit:bool=False)->list[any]:
     """Returns all possible moves of a piece on the board
+        use early_exit to check if a piece can make at least one move
     """
     i,j=pos
     piece=board[i,j]
@@ -188,6 +200,102 @@ def piece_moves(board:State,pos:tuple[int,int],early_exit:bool=False)->list[any]
         moves=Ranged_DFS(board,pos,early_exit)
     elif piece.lower in ('n','k'):
         moves=Instant_DFS(board,pos,early_exit)
+    return moves
+
+def reverse_Ranged_DFS(board:State,pos:tuple[int,int],early_exit:bool=False)->list[any]:
+    """searches for ranged pieces that can attack the given position
+    """
+    found=[]
+    bishop_kernel=[(1,1),(-1,-1),(1,-1),(-1,1)]
+    bishop_attackers=('B','Q') if board.white else ('b','q')
+    rook_attackers=('R','Q') if board.white else ('r','q')
+    friendlies=('b','p','n','r','q','k') if board.white else ('B','P','N','R','Q','K')
+    rook_kernel=[(0,1),(1,0),(0,-1),(-1,0)]
+    for kernel in (rook_kernel,bishop_kernel):
+        attackers=rook_attackers if kernel==rook_kernel else bishop_attackers
+        for move in bishop_kernel:
+            for k in range(1,8):
+                i,j=pos[0]+k*move[0],pos[1]+k*move[1]
+                if boundries(i,j):
+                    square=board[i,j]
+                    if square in attackers:
+                        if early_exit:
+                            return True
+                        found.append((i,j))
+                    elif square in friendlies:
+                        break
+                else:
+                    break
+    return [square for square in found]
+            
+def reverse_Instant_DFS(board:State,pos:tuple[int,int],early_exit:bool=False)->list[any]:
+    """searches for instant pieces that can attack the given position
+    """
+    found=[]
+    knight_kernel=[(2,1),(2,-1),(-2,1),(-2,-1),(1,2),(1,-2),(-1,2),(-1,-2)]
+    king_kernel=[(0,1),(1,0),(0,-1),(-1,0),(1,1),(-1,-1),(1,-1),(-1,1)]
+    knight_attackers=('N') if board.white else ('n')
+    king_attackers=('K') if board.white else ('k')
+    friendlies=('b','p','n','r','q','k') if board.white else ('B','P','N','R','Q','K')
+    for kernel in (knight_kernel,king_kernel):
+        attackers=knight_attackers if kernel==knight_kernel else king_attackers
+        for move in kernel:
+            i,j=pos[0]+move[0],pos[1]+move[1]
+            if boundries(i,j):
+                square=board[i,j]
+                if square in attackers:
+                    if early_exit:
+                        return True
+                    found.append((i,j))
+
+    return [square for square in found]
+
+def reverse_Pawn_DFS(board:State,pos:tuple[int,int],early_exit:bool=False)->list[any]:
+    """searches for pawns that can attack the given position
+    """
+    ### Test with en passant position
+    found=[]
+    i,j=pos
+    attacker='P' if board.white else 'p'
+    direction=-1 if board.white else 1
+    en_passant=c2i(board.en_passant) if board.en_passant!="-" else None
+    for k in (-1,1): #diagonal capture 
+        if boundries(i+direction,j+k): #diagonal capture
+            square=board[i+direction,j+k]
+            if square ==attacker:
+                if early_exit:
+                    return True
+                found.append((i+direction,j+k))
+        elif en_passant and boundries(i,j+k) and board[i,j+k]==attacker and en_passant==(i,j+k):
+            if early_exit:
+                return True
+            found.append((i,j+k))
+
+    return [square for square in found]
+
+def move_candidates(board:State,pos:tuple[int,int],early_exit:bool=False)->list[any]:
+    """Returns all possible pieces that can move to pos (current player's pieces)
+        use early_exit if you want to check if at least one piece can move to pos
+    """
+    i,j=pos
+    moves=[]
+    St=State(board[:],not board.white,board.castle,board.en_passant,board.halfmove_count,board.fullmove_count,board.kings_pos)
+    #change turn to get friendly pieces instead of attackers
+    dfs=reverse_Instant_DFS(St,pos,early_exit)
+    if dfs:
+        if early_exit:
+            return True
+        moves.append(dfs)
+    dfs=reverse_Ranged_DFS(St,pos,early_exit)
+    if dfs:
+        if early_exit:
+            return True
+        moves.append(dfs)
+    dfs=reverse_Pawn_DFS(St,pos,early_exit) ### en passant problem ?
+    if dfs:
+        if early_exit:
+            return True
+        moves.append(dfs)
     return moves
 
 def interpolate(start:tuple[int,int],end:tuple[int,int]) ->list[tuple[int,int]]:
@@ -212,7 +320,50 @@ def interpolate(start:tuple[int,int],end:tuple[int,int]) ->list[tuple[int,int]]:
         dir=1 if dy>0 else -1
         return [(i+m*dir,j-m*dir) for m in rg]
     return []
+
+def check(board:State)->bool:
+    """Returns weether the current player's king is in check
+    searches in all directions for enemy pieces
+    """
+    i,j=board.kings_pos[0,1] if board.white else board.kings_pos[2,3]
+    if reverse_Instant_DFS(board,(i,j),early_exit=True): #if a knight is attacking the king ###also searches for kings (prevents illegal king moves)
+        return True
+    elif reverse_Ranged_DFS(board,(i,j),early_exit=True): #if a ranged piece is attacking the king
+        return True
+    elif reverse_Pawn_DFS(board,(i,j),early_exit=True): #if a pawn is attacking the king
+        return True
+    return False    
+
+def checkmate(board:State)->bool:
+    """Returns weether the current player's king is in checkmate
+    """
+    i,j=board.kings_pos[0,1] if board.white else board.kings_pos[2,3]
+    king_kernel=[(0,1),(1,0),(0,-1),(-1,0),(1,1),(-1,-1),(1,-1),(-1,1)]
+    for move in king_kernel:# can move out of check
+        if boundries(i+move[0],j+move[1]) and can_move(board,(i,j),(i+move[0],j+move[1])):
+            return False
+    attackers=reverse_Ranged_DFS(board,(i,j))
+    if len(attackers)>2:#can't block 
+        return True
+    for attacker in attackers:
+        path=interpolate(i,j,attacker)
+        for square in path:
+            if move_candidates(board,square,early_exit=True):
+                return False
+    return True
             
+def stalemate(board:State)->bool:
+    """Returns weether the current player's king is in stalemate
+    """
+    pieces= ['b','p','n','r','q','k'] if board.white else ['B','P','N','R','Q','K']
+    if check(board):
+        return False
+    for i in range(8):
+        for j in range(8):
+            if board[i,j] in pieces:
+                if piece_moves(board,(i,j),early_exit=True):
+                    return False            
+    return True
 
 while True:
     break
