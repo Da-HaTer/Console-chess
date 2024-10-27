@@ -13,37 +13,43 @@ class State:
             ['r','n','b','q','k','b','n','r']
         ])
     def __init__(self,board:np.ndarray=None,white:bool=True,castle:str='-',en_passant:str='-',halfmove_count:int =0 ,fullmove_count:int =0,kings_pos:tuple[int,int,int,int]=None) -> None:
+        
+        self.board=board
         if board is None:
-            self.board_position = self.start_board
+            self.board = self.start_board
+        
+        self.kings_pos=kings_pos
         if kings_pos is None:
-            kings_pos=self.get_kings_pos()
+            self.kings_pos=self.get_kings_pos()
+
         
         self.white=white
         self.castle=castle
         self.en_passant=en_passant
         self.halfmove_count=halfmove_count
         self.fullmove_count=fullmove_count
-        self.kings_pos=kings_pos
+        
         
     
     def __eq__(self, board:object) -> bool:
         return self.board==board[:]
         
     def __getitem__(self,idx) -> np.ndarray:
-        return self.board_position[idx]
+        return self.board[idx]
+    
     def __setitem__(self,idx:tuple[int,int],val: np.ndarray) -> None:
-        self.board_position[idx]=val
+        self.board[idx]=val
 
     def setboard(self,board=start_board):
-        self.board_position = board
+        self.board = board
     
     def get_kings_pos(self):
         pos=[-1,-1,-1,-1]
         for i in range(8):
             for j in range(8):
-                if self.board_position[i,j]=='k':
+                if self.board[i,j]=='k':
                     pos[0],pos[1]=(i,j)
-                if self.board_position[i,j]=='K':
+                if self.board[i,j]=='K':
                     pos[2],pos[3]=(i,j)
                 if pos[0]>-1 and pos[2]>-1:
                     return tuple(pos)
@@ -53,7 +59,7 @@ class State:
         en_passant=self.en_passant if self.en_passant is not None else '-'
         castle=self.castle if self.castle is not None else '-'
         white="w" if self.white else "b"
-        return self.__matrix_to_fen(self.board_position)+f" {white} {castle} {en_passant} {self.halfmove_count} {self.fullmove_count}"
+        return self.__matrix_to_fen(self.board)+f" {white} {castle} {en_passant} {self.halfmove_count} {self.fullmove_count}"
 
     def __str__(self):
         return self.get_fen()
@@ -65,7 +71,7 @@ class State:
         self.en_passant=fen[3]
         self.halfmove_count=fen[4]
         self.fullmove_count=fen[5]
-        self.board_position=self.__fen_to_matrix(fen[0])
+        self.board=self.__fen_to_matrix(fen[0])
     
     def __fen_to_matrix(self,fen): #helper
         fen = fen.split(' ')[0]
@@ -120,15 +126,17 @@ class State:
     
     def randomize_board_dirty(self):
         #dirty randomization (no checks for valid or legal positions)
-        arr=self.board_position
+        arr=self.board
         arr = arr.flatten()
         np.random.shuffle(arr)
         arr = arr.reshape((8, 8))
-        self.board_position=arr
+        self.board=arr
 
-if __name__=='__main__':
+if __name__ == "__main__":
     ##TESTS
     board=State()
+    print(board.kings_pos)
+    input("hello")
     # fen test
     fen="q3kb1r/1p2pppp/5n2/2rp4/3Q1B2/4PN2/P1n2PPP/R3K2R w KQk - 0 14"
     # newboard=board.fen_to_matrix(fen)
