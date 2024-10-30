@@ -40,36 +40,41 @@ def can_move(board:State,frm:tuple[int,int],to:tuple[int,int],ep=None)->bool:
     new_pos=np.copy(board[:])
     new_pos[to]=new_pos[frm]
     new_pos[frm]=''
-    if ep:
+    kingpos=board.kings_pos[0:2] if board.white else board.kings_pos[2:]
+    if ep: #en passant: affects 3 squares (remove captured pawn)
         new_pos[ep]=''
     new_state=State(new_pos,board.white,board.castle,'-',0,board.fullmove_count+1,board.kings_pos)#white kept to check if check persists
-    if frm==board.kings_pos[0:2]:
-        new_state.kings_pos=to+board.kings_pos[2:]
-    if frm==board.kings_pos[2:-1]:
-        new_state.kings_pos=board.kings_pos[0:2]+to
+    if frm==kingpos:
+        if board.white:
+            new_state.kings_pos=to+board.kings_pos[2:]
+        else:
+            new_state.kings_pos=board.kings_pos[:2]+to
+
 
     if check(new_state):
         log("Can't move into check: ",i2c(*to))
         return False
     return True
 
-def LOOP(board:State,prev_states:dict[str]): #check for checkmate, stalemate and insufficient material returns flag and coordinates if needed
+def Flags(board:State,prev_states:dict[str]=None): #check for checkmate, stalemate and insufficient material returns flag and coordinates if needed
     """ loops on the board to check for stalemante , insufficient materials
         Returns flag if in terminal state
     """
+
+    log=Logger(False).log
     bp=('B','P','N','R','Q') # black pieces
     wp=('b','p','n','r','q') # white pieces
     w_d=dict()
     b_d=dict()
     stalemate=True
-    check=check(board)
+    check_=check(board)
     pieces= ['b','p','n','r','q','k'] if board.white else ['B','P','N','R','Q','K']
-    if check:
+    if check_:
         if checkmate(board):
             return("Checkmate")
     if board.halfmove_count==100:
         return("Draw")
-    
+
     for i in range(8):
         for j in range(8):
             #Update material dictionary (for material count)
@@ -83,23 +88,25 @@ def LOOP(board:State,prev_states:dict[str]): #check for checkmate, stalemate and
                     b_d[board[i,j]]=1
                 else:
                     b_d[board[i,j]]+=1
-
+            
             #check for check & checkmate:
             if stalemate and board[i,j] in pieces : # check for stalemate
                 pos=i,j
                 moves=piece_moves(board,pos,early_exit=True)
                 if moves: 
+                    log("moves: ",moves)
                     stalemate=False
 
     if stalemate:
         return("Stalemate")
+    
     mat_w,mat_b=mat(w_d),mat(b_d)
     insufficient_material= mat_w in ('','1b','1n','2n') and mat_b in ('','1B','1N','2N')
     if insufficient_material:
         return("Insufficient material")
-    return (None)
+    return 'check' if check_ else None
 
-def Pawn_DFS(self,board:State,pos:tuple[int,int],early_exit=False)->list[tuple[int,int]]:
+def Pawn_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[int,int]]:
         """ Returns all possible valid moves of a pawn on the board
         """
         white=board.white
@@ -144,6 +151,8 @@ def Ranged_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[int,
     """Returns all possible moves of a ranged piece on the board
     Rook, Bishop, Queen
     """
+    log=Logger(False).log
+
     i,j=pos
     piece=board[i,j]
     if piece.lower()=='r':
@@ -164,6 +173,7 @@ def Ranged_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[int,
                     break # next direction
                 elif square in foes or square =="": #can move or capture
                     if can_move(board,pos,(i+k*move[0],j+k*move[1])):
+                        log("Ranged DFS can move",i2c(*pos),i2c(i+k*move[0],j+k*move[1]))
                         if early_exit:
                             return True
                         found.append((i+k*move[0],j+k*move[1]))
@@ -177,6 +187,8 @@ def Instant_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[any]:
     """Returns all possible moves of an instant piece on the board
     Knight, King
     """
+    log=Logger(False).log
+    log(pos)
     i,j=pos
     piece=board[i,j]
     if piece.lower()=='n':
@@ -203,21 +215,25 @@ def piece_moves(board:State,pos:tuple[int,int],early_exit:bool=False)->list[any]
     """Returns all possible moves of a piece on the board
         use early_exit to check if a piece can make at least one move
     """
+    log=Logger(False).log
     i,j=pos
     piece=board[i,j]
     moves=[]
-    if piece.lower == 'p':
+    if piece.lower() == 'p':
+        log("Pawn DFS")
         moves=Pawn_DFS(board,pos,early_exit)
-    elif piece.lower in ('r','q','b'):
+    elif piece.lower() in ('r','q','b'):
+        log("Ranged DFS")
         moves=Ranged_DFS(board,pos,early_exit)
-    elif piece.lower in ('n','k'):
+    elif piece.lower() in ('n','k'):
+        log("Instant DFS")
         moves=Instant_DFS(board,pos,early_exit)
     return moves
 
 def reverse_Ranged_DFS(board:State,pos:tuple[int,int],early_exit:bool=False)->list[any]:
     """searches for ranged pieces that can attack the given position
     """
-    log=Logger(True).log
+    log=Logger(False).log
 
     found=[]
     bishop_kernel=[(1,1),(-1,-1),(1,-1),(-1,1)]
@@ -277,7 +293,7 @@ def reverse_Instant_DFS(board:State,pos:tuple[int,int],early_exit:bool=False,kin
 def reverse_Pawn_DFS(board:State,pos:tuple[int,int],early_exit:bool=False)->list[any]:
     """searches for pawns that can attack the given position
     """
-    log=Logger(debug).log
+    log=Logger(False).log
 
     ### Test with en passant position
     ### fix pinned pawn cannot take to save checkmate
@@ -288,9 +304,7 @@ def reverse_Pawn_DFS(board:State,pos:tuple[int,int],early_exit:bool=False)->list
     direction=-1 if board.white else 1
     friendlies=('b','p','n','r','q','k') if board.white else ('B','P','N','R','Q','K')
     en_passant=c2i(board.en_passant) if board.en_passant!="-" else None
-    log(i2c(i,j))
     if board.board[i,j] in friendlies: #capture
-        log("yes")
         for k in (-1,1): #diagonal capture 
             if boundries(i+direction,j+k): #diagonal capture
                 square=board[i+direction,j+k]
@@ -324,7 +338,7 @@ def move_candidates(board:State,pos:tuple[int,int],early_exit:bool=False,king:bo
         use early_exit if you want to check if at least one piece can move to pos
     """
 
-    log = Logger(True).log
+    log = Logger(False).log
     
     i,j=pos
     moves=[]
@@ -379,7 +393,7 @@ def check(board:State)->bool:
     """
     log=Logger(False).log
 
-    i,j=board.kings_pos[0:2] if board.white else board.kings_pos[2,-1]
+    i,j=board.kings_pos[0:2] if board.white else board.kings_pos[2:]
     if reverse_Instant_DFS(board,(i,j),early_exit=True): #if a knight is attacking the king ###also searches for kings (prevents illegal king moves)
         log("-check: Instant DFS")
         return True
@@ -394,13 +408,15 @@ def check(board:State)->bool:
 def checkmate(board:State)->bool:
     """Returns weether the current player's king is in checkmate
     """
-    log=Logger(debug).log
-
-    i,j=board.kings_pos[0:2] if board.white else board.kings_pos[2:-1]
+    log=Logger(False).log
+    if not check(board):
+        return False
+    
+    i,j=board.kings_pos[0:2] if board.white else board.kings_pos[2:]
     king_kernel=[(0,1),(1,0),(0,-1),(-1,0),(1,1),(-1,-1),(1,-1),(-1,1)]
     for move in king_kernel:# can move out of check
         if boundries(i+move[0],j+move[1]) and can_move(board,(i,j),(i+move[0],j+move[1])):
-            log("can move out of check")
+            log(f"{'white' if board.white else 'black'} can move out of check")
             return False
     attackers=reverse_Ranged_DFS(board,(i,j))
     attackers=attackers+reverse_Instant_DFS(board,(i,j),king=True)
@@ -571,16 +587,32 @@ while True:
 
 if __name__=="__main__":
     start_board=np.array([
-        ['R','N','B','','K','B','N','R'],
+        ['R','N','B','Q','K','B','N','R'],
         ['P','P','P','P','P','P','P','P'],
         ['','','','','','','',''],
-        ['','','','','Q','','',''],
         ['','','','','','','',''],
-        ['','','','N','','','',''],
-        ['p','p','p','p','p','p','','p'],
-        ['r','n','b','q','k','b','','r']
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['p','p','p','p','p','p','p','p'],
+        ['r','n','b','q','k','b','n','r']
     ])
-    board=State(start_board)
+
+    empty_board=np.array([
+        ['','','','','K','','r',''],
+        ['','','','','','','',''],
+        ['','','','','k','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','','']
+        ])
+
+
+    board=State(empty_board)
+    board.white=False
     Display(board)
-    print("check: ",check(board))
-    print("checkmate: ",checkmate(board))
+    # print("check: ",check(board))
+    # print("checkmate: ",checkmate(board))
+    # print("stalemate: ",stalemate(board))
+    print(Flags(board))
