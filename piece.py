@@ -568,12 +568,12 @@ class ChessPiece:
     def Valid_moves(self,pos,board,white,position,en_passant=None):
         symbol=pos[position]
         if symbol in ('p','P'):
-            board.Highlight(position)
             moves=self.Reverse_Pawn_Dfs(pos,position[0],position[1],white,en_passant,False) #all possible squares that this pawn can move to
-            print(moves)
-            input()
+            # board.Highlight(position)
+            # print(moves)
+            # input()
             # sleep(0.5)
-            board.Highlight(moves)
+            # board.Highlight(moves)
                 #if valid move (no check or (illegal move ?(check)))
                     #RETURN FALSE
         elif symbol in ('n','N'):
