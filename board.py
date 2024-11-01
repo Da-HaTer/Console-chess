@@ -32,7 +32,7 @@ class State:
         
     
     def __eq__(self, board:object) -> bool:
-        return self.board==board[:]
+        return str(self)==str(board)
         
     def __getitem__(self,idx) -> np.ndarray:
         return self.board[idx]
@@ -62,7 +62,7 @@ class State:
         return self.__matrix_to_fen(self.board)+f" {white} {castle} {en_passant} {self.halfmove_count} {self.fullmove_count}"
 
     def __str__(self):
-        return self.get_fen()
+        return ' '.join(self.get_fen().split(' ')[:-2])
 
     def set_fen(self,fen:str) -> None:
         fen = fen.split(' ')
@@ -135,6 +135,9 @@ class State:
 if __name__ == "__main__":
     ##TESTS
     board=State()
+    new_board=State()
+    new_board.halfmove_count=12
+    print(board==new_board)
     print(board.kings_pos)
     input("hello")
     # fen test

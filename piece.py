@@ -116,8 +116,11 @@ class Piece:
                 display.Highlight()
             return [self.i2c(square) for square in found] 
 
-    def Pawn_Dfs(self,pos,i,j,white,ep=[None,None]): # returns all valid pawns that can make this move
+    def Pawn_Dfs(self,board:State,square:tuple[int,int])->list[str]: # returns all valid pawns that can make this move
         debug=False
+        white=board.white
+        en_passant=board.en_passant
+        i,j=square
         from time import sleep
         if debug:
             display=Display(pos,"green")
@@ -125,7 +128,6 @@ class Piece:
         symbol="p" if white else "P"
         found=[]
         direction=1 if white else -1
-        en_passant=ep[1] if white else ep[0]
         pawn_kernel=[]# simple move
         if  pos[i,j]=="": #pawn found
             pawn_kernel+=[(direction,0)]
@@ -280,7 +282,10 @@ class Piece:
             raise IllegalMoveError(move)
         return (new_pos,en_passant)
 
-    def pawn_move2(self,white,position,move,en_passant=[None,None]): ### Run Tests
+    def pawn_move2(self,board:State,move:str)->State:
+        white=board.white
+        position=board.board
+        new_pos=position.copy()
         pawn_syntax= re.compile(r'^([a-h][x])?[a-h][1-8]=?[rbnq]?$',re.IGNORECASE)
         if not pawn_syntax.match(move):
             raise InvalidMoveError(move)
@@ -291,35 +296,34 @@ class Piece:
         if promote:
             symbol=move[-1].lower() if white else move[-1].upper()
 
-        i,j= self.c2i(square)
+        i,j= self.c2i(square) 
 
-        promote=promote[0][1] if promote else ""
-        capture=capture[0][0] if capture else ""
+        promote=promote[0][1] if promote else "" #promotion piece symbol 
+        capture=capture[0][0] if capture else "" #capture symbol
         
         if promote and not ((i==0 and white) or (i==7 and not white)):# invalid promotion square
             raise InvalidMoveError(move) #invalid promotion
-        new_pos=position.copy()
+        ###Replace with new reverse_Pawn_DFS
+        
         Pawns=self.Pawn_Dfs(position,i,j,white,en_passant)
+        # Pawns=reverse_Pawn_DFS(board,pos)
 
         # print("Candidates: ",Pawns)
         # sleep(1)
         if len(Pawns)==0:
             raise InvalidMoveError(move)
         else:
-            pawn=self.ambiguity(move,capture,Pawns)
+            pawn=self.ambiguity(move,capture,lambda pawns: [self.i2c(i) for i in pawns])
             # print("Selected: ",pawn)
             # sleep(0.5)
             new_pos[i,j]=symbol
             new_pos[self.c2i(pawn)]=''
-            if white:
-                en_passant[0]=None
-                if i==4 and pawn[1]=="2": #two square move
-                    en_passant[0]=square
-            else: #two square move
-                en_passant[1]=None
-                if i==3 and pawn[1]=="7":
+            if white and i==4 and pawn[1]=="2": #two square move
+                    en_passant=square
+            elif not white and i==3 and pawn[1]=="7":
                     en_passant[1]=square
-            return (new_pos,en_passant)
+            ### Return state 
+            return (new_pos)
         
     def rook_move(self,white,position,move):
         #interpret move 

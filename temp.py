@@ -104,7 +104,7 @@ def Flags(board:State,prev_states:dict[str]=None): #check for checkmate, stalema
     insufficient_material= mat_w in ('','1b','1n','2n') and mat_b in ('','1B','1N','2N')
     if insufficient_material:
         return("Insufficient material")
-    return 'check' if check_ else None
+    return 'Check' if check_ else None
 
 def Pawn_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[int,int]]:
         """ Returns all possible valid moves of a pawn on the board
@@ -446,101 +446,74 @@ def stalemate(board:State)->bool:
                     return False            
     return True
 
-while True:
-    break
-    # piece=Piece('w',start_board)
-    # board=Display(pos) if gui else None
-    flag=get_flag(board)
-    if flag[0]=="checkmate":
-        pass
-        ##update moves
-        # checkmate=True
-        # if moves:
-        #     moves[-1]=moves[-1]+"#"
-        # print('moves :',moves)
-        ##print stuff
-        # print("\033[31mCheckmate\033[0m")
-        # print("FEN :",Board().matrix_to_fen(pos,True))
-        # print("PGN :", Board().Moves_to_Pgn(moves))
-        # break
-    elif flag[0]=="check":
-        checks=(piece.King_check(pos,True),piece.King_check(pos,False)) ##checking pieces
-    #reset en passant on each turn ### should move to piece 
-    if white:
-        en_passant[0]=None
-    else:
-        en_passant[1]=None
-    highlight=None
-    if checks[0]:
-        if not checkmate:
-            if moves:
-                moves[-1]=moves[-1]+"+" if moves[-1][-1]!="+" else moves[-1]
-        highlight=kings[0]  
-    if checks[1]:
-        if not checkmate:
-            if moves:
-                moves[-1]=moves[-1]+"+" if moves[-1][-1]!="+" else moves[-1]
-        highlight=kings[1]
-    if gui:
-        board.Highlight(highlight)
-    # print("white checks:", checks[0], "Black checks: ",checks[1])
-    # print("enpassant:",en_passant[0],en_passant[1])
-    # sleep(1)
+def Parse_Input(board_state:State,board_states:list[State],board_states_count:dict[str,int],pgn_moves:list[str]):
+    """Parses the input from the user
+    """
     if i < len(premoves):
         move=premoves[i]
         i+=1
     else:
         w='\033[1m'+"white"+'\033[0m' # bold repr
-        if gui:
-            print(f'{ w if white else board.colored("black")} to play')
+        if Gui:
+            print(f'{ w if white else "black"} to play')
         # print("Kings pos:",f"{piece.i2c(kings[0])} {piece.i2c(kings[1])}")
         # print("Old Kings pos:",f"{piece.i2c(old_kings[0])} {piece.i2c(old_kings[1])}")
         # print("moves :",moves)
-        move=input("Enter move: ( [move]|back|skip|reset|[Get/Set] FEN|Get PGN )\n")
 
+        ### potentially move to seperate input function 
+        move=input("Enter move: ( [move]|Takeback|Skip|Reset|[Get/Set] FEN|[Get/Set] PGN )\n")
+        ### set pgn: plays the moves and checks if valid else return error invalid pgn
     move=move.replace("+","") #remove check notation
     move=move.replace("#","") #remove checkmate notation
-    if move=="q":
-        break
-    elif move=="back":
-        pos=old_pos
-        kings=old_kings
-        en_passant=old_en_passant
-        white=not white
-        checkmate=False
-        moves=moves[:-1]
-        continue
-    elif move=="skip":
-        white=not white
-        continue
-    elif move=="reset":
-        moves=[]
-        pos=start_board
-        kings=[(7,4),(0,4)]
-        en_passant=[None,None]
-        white=True
-        highlight=None
-        continue
+    if move.lower()=="exit":
+        ###return type ?
+        return False
+    elif move.lower()=="resign":
+        ###update pgn
+        pass
+    elif move.lower()=="back":
+        if len(board_state)<=1:
+            print("No moves to take back")
+            return None
+        # pos=old_pos
+        # kings=old_kings
+        # en_passant=old_en_passant
+        # white=not white
+        ### should set state to previous state without recheking for checkmate/stalemate/checks
+        ### recalculate kingpos ?
+        board_states.pop()
+        pgn_moves.pop()
+        try:
+            board_states_count[str(board_state)]-=1
+        except Exception as e:
+            print(e)
+    
+    elif move.lower()=="skip":
+        #for testing for now
+        board_state.white=not board_state.white
+    elif move.lower()=="reset":
+        board_state=State()
+        board_states=[str(board_state)]
+        board_states_count={str(board_state):1}
+        ### should return something else
+        return None
     elif move.upper()=="GET FEN":
-        State().matrix_to_fen(pos,True)
+        print(board_state.get_fen())
         input("press any key to continue...")
-        continue
+        return None
     elif move.upper()=="SET FEN":
-        fen=input("Enter FEN: ")
-        pos=State().fen_to_matrix(fen)
-        old_pos=pos
-        continue
+        fen=input("Enter FEN:\n")
+        board_state.set_fen(fen)
+        #reset previous moves
+        board_states=[str(board_state)]
+        board_states_count={str(board_state):1}
+        return None
     elif move.upper()=="GET PGN":
-        print(' '.join([str(i+1)+'. '+moves[i] for i in range(len(moves))]))
+        print(' '.join([str(i+1)+'. '+pgn_moves[i] for i in range(len(pgn_moves))]))
         input("press any key to continue...")
-        continue
-    old_kings=kings[:]
+        return None
+    
     try:
-        if move !="back" and move!="reset" and checkmate:
-            raise IllegalMoveError("Checkmate")
-        ### conflict between b pawn and bishop notation should probably be resolved with classifying by syntax instead of throwing errors right away
-        ##example: bxc4 could be a pawn move or a bishop move
-        ## solution: bishop: capital letter, pawn: small letter b
         if move[0] in 'abcdefgh':  
             t=piece.pawn_move2(white,pos,move,en_passant)
             position=t[0]
@@ -584,6 +557,55 @@ while True:
         print(traceback.format_exc())
         print("fen :",State().matrix_to_fen(old_pos,False))
         input("press any key to continue...")
+Gui=True
+premoves,i=[],0
+pgn_moves=[]
+board_state=State()
+if Gui:
+    ui=Display(board_state)
+board_states=[str(board_state)]
+board_states_count={str(board_state):1}
+game=True
+while game:
+    # piece=Piece('w',start_board)
+    # board=Display(pos) if gui else None
+    flag=Flags(board_state)
+    if flag=="Stalemate":
+        if moves:
+            moves[-1]=moves[-1]+" 1/2-1/2" if ("1/2-1/2" not in moves[-1]) else moves[-1]
+        game=False
+    elif flag=="Checkmate":
+        if moves:
+            if board_state.white:
+                moves[-1]=moves[-1]+"# 0-1" if ("#" not in moves[-1]) else moves[-1]+" 0-1"
+            else:
+                moves[-1]=moves[-1]+"# 1-0" if ("#" not in moves[-1]) else moves[-1]+" 1-0"
+        if Gui:
+            checks=(True,False) if board_state.white else (False,True)
+            ui.update_checks(checks)
+        game=False
+        ##update moves
+        # checkmate=True
+        # if moves:
+        #     moves[-1]=moves[-1]+"#"
+        # print('moves :',moves)
+        ##print stuff
+        # print("\033[31mCheckmate\033[0m")
+        # print("FEN :",Board().matrix_to_fen(pos,True))
+        # print("PGN :", Board().Moves_to_Pgn(moves))
+        # break
+    
+    elif flag=="Check":
+        if Gui:
+            checks=(True,False) if board_state.white else (False,True)
+            ui.update_checks(checks)
+        if moves:
+            moves[-1]=moves[-1]+"#" if moves[-1][-1]!="#" else moves[-1]
+
+    # print("white checks:", checks[0], "Black checks: ",checks[1])
+    # print("enpassant:",en_passant[0],en_passant[1])
+    # sleep(1)
+
 
 if __name__=="__main__":
     start_board=np.array([
