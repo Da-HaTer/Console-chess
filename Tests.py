@@ -167,7 +167,7 @@ def Pawn_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[tuple[
                         if new_state:
                             if early_exit:
                                 return True
-                            new_state[i+direction,j+k]=piece.upper()
+                            new_state[i+direction,j+k]=piece
                             new_state.en_passant='-'
                             new_state.halfmove_count=0
                             found.append(((i,j,i+direction,j+k),new_state))
@@ -250,7 +250,6 @@ def Instant_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[tup
     Knight, King
     """
     log=Logger(False).log
-    log(pos)
     i,j=pos
     piece=board[i,j]
     if piece.lower()=='n':
@@ -258,6 +257,7 @@ def Instant_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[tup
     elif piece.lower()=='k':
         moves_kernel=[(0,1),(1,0),(0,-1),(-1,0),(1,1),(-1,-1),(1,-1),(-1,1)]
         kp=board.kings_pos
+        casteling_symbols=('K','Q') if board.white else ('k','q')
 
     friends,foes=('b','p','n','r','q','k'),('B','P','N','R','Q','K')
     friends,foes=(friends,foes) if board.white else (foes,friends)
@@ -280,58 +280,59 @@ def Instant_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[tup
                             new_state.castle=rook_casteling((i+move[0],j+move[1]),new_state.castle)# no longer can castle
                     if piece.lower()=='k':
                         new_state.kings_pos= (i+move[0],j+move[1])+kp[2:] if board.white else kp[:2]+(i+move[0],j+move[1]) #update king position
-                        new_state.castle='-' #king moved: can no longer castle
+                        for symbol in casteling_symbols:
+                            new_state.castle=new_state.castle.replace(symbol,'') #no longer can castle
+                        new_state.castle='-' if not new_state.castle else new_state.castle
                     found.append(((i,j,i+move[0],j+move[1]),new_state))
     ##king casteling
-    if piece.lower()=='k':
-        if board.castle!='-':
-            # print("casteles",board)
-            if board.white:
-                if 'K' in board.castle and np.array_equal(board[7, 5:7], np.array(['', ''])):  # clear path
-                    if can_move(board, pos, (7, 5)):  # not passing through check
-                        new_state = can_move(board, pos, (7, 6))
-                        if new_state:
-                            new_state[7, 5] = 'r'
-                            new_state[7, 7] = ''
-                            new_state.castle = board.castle.replace('K', '')
-                            new_state.kings_pos = (7, 6) + kp[2:]
-                            new_state.en_passant = '-'
-                            print(board)
-                            found.append(((7,4,7,6), new_state))
-                if 'Q' in board.castle and np.array_equal(board[7, 1:4], np.array(['', '', ''])):  # clear path
-                    if can_move(board, pos, (7, 3)):  # not passing through check
-                        new_state = can_move(board, pos, (7, 2))
-                        if new_state:
-                            new_state[7, 3] = 'r'
-                            new_state[7, 0] = ''
-                            new_state.castle = board.castle.replace('Q', '')
-                            new_state.kings_pos = (7, 2) + kp[2:]
-                            new_state.en_passant = '-'
-                            print(board)
-                            found.append(((7,4,7,2), new_state))
-            else:
-                if 'k' in board.castle and np.array_equal(board[0, 5:7], np.array(['', ''])):  # clear path
-                    if can_move(board, pos, (0, 5)):  # not passing through check
-                        new_state = can_move(board, pos, (0, 6))
-                        if new_state:
-                            new_state[0, 5] = 'R'
-                            new_state[0, 7] = ''
-                            new_state.castle = board.castle.replace('k', '')
-                            new_state.kings_pos = kp[:2] + (0, 6)
-                            new_state.en_passant = '-'
-                            print(board)
-                            found.append(((0,4,0,6), new_state))
-                if 'q' in board.castle and np.array_equal(board[0, 1:4], np.array(['', '', ''])):  # clear path
-                    if can_move(board, pos, (0, 3)):  # not passing through check
-                        new_state = can_move(board, pos, (0, 2))
-                        if new_state:
-                            new_state[0, 3] = 'R'
-                            new_state[0, 0] = ''
-                            new_state.castle = board.castle.replace('q', '')
-                            new_state.kings_pos = kp[:2] + (0, 2)
-                            new_state.en_passant = '-'
-                            print(board)
-                            found.append(((0,4,0,2), new_state))
+    if piece.lower()=='k' and board.castle!='-' and not check(board): #can castle
+        log(f"should castle {board} {pos}")
+        if board.white:
+            if 'K' in board.castle and np.array_equal(board[7, 5:7], np.array(['', ''])):  # clear path
+                if can_move(board, pos, (7, 5)):  # not passing through check
+                    new_state = can_move(board, pos, (7, 6))
+                    if new_state:
+                        new_state[7, 5] = 'r'
+                        new_state[7, 7] = ''
+                        new_state.castle = board.castle.replace('K', '').replace('Q', '')
+                        new_state.kings_pos = (7, 6) + kp[2:]
+                        new_state.en_passant = '-'
+                        log("King casteling")
+                        found.append(((7,4,7,6), new_state))
+            if 'Q' in board.castle and np.array_equal(board[7, 1:4], np.array(['', '', ''])):  # clear path
+                if can_move(board, pos, (7, 3)):  # not passing through check
+                    new_state = can_move(board, pos, (7, 2))
+                    if new_state:
+                        new_state[7, 3] = 'r'
+                        new_state[7, 0] = ''
+                        new_state.castle = board.castle.replace('K', '').replace('Q', '')
+                        new_state.kings_pos = (7, 2) + kp[2:]
+                        new_state.en_passant = '-'
+                        log("King casteling")
+                        found.append(((7,4,7,2), new_state))
+        else:
+            if 'k' in board.castle and np.array_equal(board[0, 5:7], np.array(['', ''])):  # clear path
+                if can_move(board, pos, (0, 5)):  # not passing through check
+                    new_state = can_move(board, pos, (0, 6))
+                    if new_state:
+                        new_state[0, 5] = 'R'
+                        new_state[0, 7] = ''
+                        new_state.castle = board.castle.replace('k', '').replace('q', '')
+                        new_state.kings_pos = kp[:2] + (0, 6)
+                        new_state.en_passant = '-'
+                        log("King casteling")
+                        found.append(((0,4,0,6), new_state))
+            if 'q' in board.castle and np.array_equal(board[0, 1:4], np.array(['', '', ''])):  # clear path
+                if can_move(board, pos, (0, 3)):  # not passing through check
+                    new_state = can_move(board, pos, (0, 2))
+                    if new_state:
+                        new_state[0, 3] = 'R'
+                        new_state[0, 0] = ''
+                        new_state.castle = board.castle.replace('k', '').replace('q', '')
+                        new_state.kings_pos = kp[:2] + (0, 2)
+                        new_state.en_passant = '-'
+                        log("King casteling")
+                        found.append(((0,4,0,2), new_state))
     return found
    
 def piece_moves(board:State,pos:tuple[int,int],early_exit:bool=False)->list[tuple[tuple[int,int,int,int],State]]:
@@ -349,12 +350,14 @@ def piece_moves(board:State,pos:tuple[int,int],early_exit:bool=False)->list[tupl
         log("Ranged DFS",piece)
         moves=Ranged_DFS(board,pos,early_exit)
     elif piece.lower() in ('n','k'):
-        
         log("Instant DFS")
         moves=Instant_DFS(board,pos,early_exit)
     return moves
 
-def all_moves(board:State)->list[State]:
+def all_moves(board:State)->list[tuple[tuple[int, int, int, int], State]]:
+    """Returns all possible moves of this state
+    format: fromi,fromj,toi,toj,new_state
+    """
     moves=[]
     for i in range(8):
         for j in range(8):
@@ -761,13 +764,13 @@ if __name__=="__main__":
 
     empty_board=np.array([
         ['','','','','K','','',''],
-        ['','','','','','','','p'],
-        ['','','','','k','','',''],
+        ['','','','','','','',''],
+        ['','','','r','','q','',''],
         ['','','','','','','',''],
         ['','','','','','','',''],
         ['','','','','','','',''],
         ['','','','','','','',''],
-        ['','','','','','','','']
+        ['','','','k','','','','']
         ])
 
 
@@ -783,41 +786,37 @@ def predict_moves(board:State, n): #Tree Nodes search by depth- keyword: Perft R
     s0 = board
     return count_moves_dfs(s0, n)
 
-import time
-while True:
-    t0=time.time()
+def get_perft_result(fen:str,depth:int)->int:
     board=State(empty_board)
-    # board.set_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
-    board.set_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1R1K b kq - 0 1")
-    display=Display(board)
-    display.update()
-    # print(len(all_moves(board)))
-    states=all_moves(board)
-    # for state in states:
-    #     lm=state[0]
-    #     display.update(state[1],(lm[0:2],lm[2:4]))
-    #     time.sleep(1)
-    # break
-    # s=0
-    # for state in states[:]:
-    #     display.update(state)
-    #     time.sleep(1)
-        
-        # time.sleep(1)
-        # for state2 in all_moves(state)[:]:
-        #     display.update(state2)
-        #     time.sleep(0.6)
-    # print(s)
-    n=2
-    move_counts = predict_moves(board, n)
-    print("Possible moves at each depth:", move_counts)
-    print(f"took {time.time()-t0:.3f} seconds")
-    break
-    # dfs_count_states(board)
-    # print(piece_moves(board,(7,2)))
-    # board.white=False
-    # Display(board)
-    # # print("check: ",check(board))
-    # # print("checkmate: ",checkmate(board))
-    # # print("stalemate: ",stalemate(board))
-    # print(Flags(board))
+    board.set_fen(fen)
+    Display(board)
+    return predict_moves(board,depth)
+
+def Run_Tests():
+    import time
+    with open("perftsuite.epd",'r') as f:
+        lines=f.readlines()
+        for i,line in enumerate(lines):
+            print(f'***Testcase [{i+1}/{len(lines)}]***')
+            line=line.split(';')
+            fen,testcases=line[0][:-1],line[1:]
+
+            for j,test in enumerate(testcases):
+                print(f'Depth [{j+1}/{len(testcases)}]')
+                depth,result=test[:-1].split(' ')
+                depth=int(depth[1:])
+                result=int(result)
+                if result>5e5:
+                    break
+                start=time.time()
+                if get_perft_result(fen,depth)!=result:
+                    print('Did not pass')
+                    print(fen,depth,result)
+                    break
+                print("Passed")
+                print(f"Time: {(time.time()-start):.3f}")
+                print()
+
+Run_Tests()
+# print(get_perft_result("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10 ",3))
+exit()
