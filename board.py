@@ -43,6 +43,9 @@ class State:
     def setboard(self,board=start_board):
         self.board = board
     
+    def reset_kings_pos(self):
+        self.kings_pos=self.get_kings_pos()
+
     def get_kings_pos(self):
         pos=[-1,-1,-1,-1]
         for i in range(8):
@@ -69,9 +72,10 @@ class State:
         self.white=fen[1]=='w'
         self.castle=fen[2]
         self.en_passant=fen[3]
-        self.halfmove_count=fen[4]
-        self.fullmove_count=fen[5]
+        self.halfmove_count=int(fen[4]) if len(fen)>4 and fen[4] else 0
+        self.fullmove_count=int(fen[5]) if len(fen)>6 and fen[5] else 0
         self.board=self.__fen_to_matrix(fen[0])
+        self.kings_pos=self.get_kings_pos()
     
     def __fen_to_matrix(self,fen): #helper
         fen = fen.split(' ')[0]
@@ -83,7 +87,7 @@ class State:
                 if k.isdigit():
                     j += int(k)
                 else:
-                    board[i,j] = k
+                    board[i,j] = k.lower() if k.isupper() else k.upper()
                     j += 1
         return board
     
@@ -98,7 +102,7 @@ class State:
                     if j > 0:
                         fen += str(j)
                         j = 0
-                    fen += k
+                    fen += k.lower() if k.isupper() else k.upper()
             if j > 0:
                 fen += str(j)
             if i < 7:

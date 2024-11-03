@@ -28,7 +28,7 @@ def mat(d:dict)->str:
     Convert matieral count dictionary to string (for insufficient material check)"""
     return ' '.join([str(v)+k for k,v in d.items()])
 
-def can_move(board:State,frm:tuple[int,int],to:tuple[int,int],ep=None)->bool:
+def can_move(board:State,frm:tuple[int,int],to:tuple[int,int],ep=None,promote=None)->State:
     """Check if a move is legal (doesn't walk into check, stay in check or capture own pieces) , doesn't check for invalid moves (format ) """
     log=Logger(False).log
 
@@ -38,12 +38,12 @@ def can_move(board:State,frm:tuple[int,int],to:tuple[int,int],ep=None)->bool:
         return False
     
     new_pos=np.copy(board[:])
-    new_pos[to]=new_pos[frm]
+    new_pos[to]= promote if promote else new_pos[frm]
     new_pos[frm]=''
     kingpos=board.kings_pos[0:2] if board.white else board.kings_pos[2:]
-    if ep: #en passant: affects 3 squares (remove captured pawn)
+    if ep: #Position of the en passant pawn to be capture 
         new_pos[ep]=''
-    new_state=State(new_pos,board.white,board.castle,'-',0,board.fullmove_count+1,board.kings_pos)#white kept to check if check persists
+    new_state=State(new_pos,board.white,board.castle,'-',board.halfmove_count,board.fullmove_count+1,board.kings_pos)#white kept to check if check persists
     if frm==kingpos:
         if board.white:
             new_state.kings_pos=to+board.kings_pos[2:]
@@ -53,8 +53,9 @@ def can_move(board:State,frm:tuple[int,int],to:tuple[int,int],ep=None)->bool:
 
     if check(new_state):
         log("Can't move into check: ",i2c(*to))
-        return False
-    return True
+        return None
+    new_state.white=not new_state.white
+    return new_state
 
 def Flags(board:State,prev_states:dict[str]=None): #check for checkmate, stalemate and insufficient material returns flag and coordinates if needed
     """ loops on the board to check for stalemante , insufficient materials
@@ -73,7 +74,7 @@ def Flags(board:State,prev_states:dict[str]=None): #check for checkmate, stalema
         if checkmate(board):
             return("Checkmate")
     if board.halfmove_count==100:
-        return("Draw")
+        return("50-move Draw")
 
     for i in range(8):
         for j in range(8):
@@ -106,51 +107,98 @@ def Flags(board:State,prev_states:dict[str]=None): #check for checkmate, stalema
         return("Insufficient material")
     return 'Check' if check_ else None
 
-def Pawn_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[int,int]]:
+def rook_casteling(pos:tuple[int,int],casteling:str)->str:
+    """returns the new castelling string after a rook moves, gets captured"""
+    i,j=pos
+    s=casteling
+    if (i,j)==(0,0):
+        s=s.replace('q','')
+    elif (i,j)==(0,7):
+        s=s.replace('k','')
+    elif (i,j)==(7,0):
+        s=s.replace('Q','')
+    elif (i,j)==(7,7):
+        s=s.replace('K','')
+    return s if s else '-'
+
+def Pawn_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[tuple[int,int,int,int],State]]:
         """ Returns all possible valid moves of a pawn on the board
         """
         white=board.white
         i,j=pos
         friends,foes=('b','p','n','r','q','k'),('B','P','N','R','Q','K')
+        promotion=('Q','R','B','N') if not white else ('q','r','b','n')
         friends,foes=(friends,foes) if white else (foes,friends)
         ep=c2i(board.en_passant) if board.en_passant!="-" else None# en passant pawn coordinates
         found=[]
+        row=4 if board.white else 3
         direction=1 if not white else -1
         if boundries(i+direction,j) and board[i+direction,j]=="": # simple move
-            if can_move(board,pos,(i+direction,j)):
+            if i+direction in (0,7): #promotion
+                for piece in promotion:
+                    new_state=can_move(board,pos,(i+direction,j),None,piece)
+                    if new_state:
+                        if early_exit:
+                            return True
+                        new_state.en_passant='-'
+                        new_state.halfmove_count=0
+                        found.append(((i,j,i+direction,j),new_state))
+            else:
+                new_state=can_move(board,pos,(i+direction,j))
+                if new_state:
+                    if early_exit:
+                        return True
+                    new_state.en_passant='-'
+                    new_state.halfmove_count=0
+                    found.append(((i,j,i+direction,j),new_state))
+        if boundries(i+2*direction,j) and board[i+2*direction,j]=="" and board[i+direction,j]=="" and i+2*direction==row: # simple 2 square move
+            new_state=can_move(board,pos,(i+2*direction,j))
+            if new_state:
                 if early_exit:
                     return True
-                found.append((i+direction,j))
-
+                new_state.en_passant=i2c(i+direction,j)
+                new_state.halfmove_count=0
+                found.append(((i,j,i+2*direction,j),new_state))
         for k in (-1,1): #diagonal capture 
             if boundries(i+direction,j+k) and board[i+direction,j+k] in foes:#diagonal capture
-                if can_move(board,pos,(i+direction,j+k)):
-                    if early_exit:
-                        return True
-                    found.append((i+direction,j+k))
-
-        if i==1 and white or i==6 and not white:
-            if board[i+direction,j]=="" and board[i+2*direction,j]=="":
-                if can_move(board,pos,(i+2*direction,j)):
-                    if early_exit:
-                        return True
-                    found.append((i+2*direction,j))
-
-        if ep and ep[0]==i: #en passant
-            for r in (3,4):#row 
-                for c in (1,-1):#column offset
-                    if (i%2)==white and boundries(r,j+c) and (r,j+c)==ep:
-                        if can_move(board,pos,(r+direction,j+c),ep):
+                if i+direction in (0,7): #promotion
+                    for piece in promotion:
+                        new_state=can_move(board,pos,(i+direction,j+k),None,piece)
+                        if new_state:
                             if early_exit:
                                 return True
-                            found.append((r,c))
-        #### TO BE TESTED
+                            new_state[i+direction,j+k]=piece.upper()
+                            new_state.en_passant='-'
+                            new_state.halfmove_count=0
+                            found.append(((i,j,i+direction,j+k),new_state))
+                else:
+                    new_state=can_move(board,pos,(i+direction,j+k))
+                    if new_state:
+                        if early_exit:
+                            return True
+                        if board[i+direction,j+k].lower()=='r': #rook captured
+                            new_state.castle=rook_casteling((i+direction,j+k),new_state.castle)# no longer can castle
+                        new_state.en_passant='-'
+                        new_state.halfmove_count=0
+                        found.append(((i,j,i+direction,j+k),new_state))
+
+        for c in (-1,1): # en passant
+            if ep and boundries(i+direction,j+c) and (i+direction,j+c)==ep and ep[0]%2!=board.white:
+                new_state= can_move(board,pos,(i+direction,j+c),ep=(i,j+c))
+                if new_state:
+                    if early_exit:
+                        return True
+                    new_state.en_passant='-'
+                    new_state.halfmove_count=0
+                    found.append(((i,j,i+direction,j+c),new_state))
+    #### TO BE TESTED
         return found #return all possible moves (squares)
     
-def Ranged_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[int,int]]:
+def Ranged_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[tuple[int,int,int,int],State]]:
     """Returns all possible moves of a ranged piece on the board
     Rook, Bishop, Queen
     """
+
     log=Logger(False).log
 
     i,j=pos
@@ -168,22 +216,36 @@ def Ranged_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[int,
     for move in moves_kernel: # for direction
         for k in range(1,8): 
             if 0<=i+k*move[0]<8 and 0<=j+k*move[1]<8: #within bounds
+                log("Ranged DFS 1")
                 square=board[i+k*move[0],j+k*move[1]]
                 if square in friends:
                     break # next direction
                 elif square in foes or square =="": #can move or capture
-                    if can_move(board,pos,(i+k*move[0],j+k*move[1])):
+                    log("Ranged DFS 2")
+                    new_state=can_move(board,pos,(i+k*move[0],j+k*move[1]))
+                    if new_state:
+                        log("Ranged DFS 3")
+                        if piece.lower()=='r':#rook moves
+                            new_state.castle=rook_casteling(pos,new_state.castle) # no longer can castle
+                        if board[i+k*move[0],j+k*move[1]].lower()=='r': #opponent's rook captured
+                            new_state.castle=rook_casteling((i+k*move[0],j+k*move[1]),new_state.castle)# opponent no longer can castle
                         log("Ranged DFS can move",i2c(*pos),i2c(i+k*move[0],j+k*move[1]))
                         if early_exit:
                             return True
-                        found.append((i+k*move[0],j+k*move[1]))
-                    break
+                        new_state.en_passant='-'
+                        if square in foes: # capture 
+                            new_state.halfmove_count=0
+                        found.append(((i,j,i+k*move[0],j+k*move[1]),new_state))
+                    if square in foes:
+                        break
+                    else:
+                        continue
             else:
                 break # out of bounds search next direction
 
-    return [square for square in found]
+    return found
 
-def Instant_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[any]:
+def Instant_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[tuple[tuple[int,int,int,int],State]]:
     """Returns all possible moves of an instant piece on the board
     Knight, King
     """
@@ -195,6 +257,7 @@ def Instant_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[any]:
         moves_kernel=[(2,1),(2,-1),(-2,1),(-2,-1),(1,2),(1,-2),(-1,2),(-1,-2)]
     elif piece.lower()=='k':
         moves_kernel=[(0,1),(1,0),(0,-1),(-1,0),(1,1),(-1,-1),(1,-1),(-1,1)]
+        kp=board.kings_pos
 
     friends,foes=('b','p','n','r','q','k'),('B','P','N','R','Q','K')
     friends,foes=(friends,foes) if board.white else (foes,friends)
@@ -203,31 +266,106 @@ def Instant_DFS(board:State,pos:tuple[int,int],early_exit=False)->list[any]:
         if 0<=i+move[0]<8 and 0<=j+move[1]<8: #within bounds
             square=board[i+move[0],j+move[1]]
             if square in friends:
-                break # next direction
+                continue # next direction
             elif square in foes or square =="": #can move or capture
-                if can_move(board,pos,(i+move[0],j+move[1])):
+                new_state=can_move(board,pos,(i+move[0],j+move[1]))
+                
+                if new_state:
+                    
                     if early_exit:
                         return True
-                    found.append((i+move[0],j+move[1]))
-    return [square for square in found] 
+                    if square in foes:
+                        new_state.halfmove_count=0
+                    if board[i+move[0],j+move[1]].lower()=='r': #rook captured
+                            new_state.castle=rook_casteling((i+move[0],j+move[1]),new_state.castle)# no longer can castle
+                    if piece.lower()=='k':
+                        new_state.kings_pos= (i+move[0],j+move[1])+kp[2:] if board.white else kp[:2]+(i+move[0],j+move[1]) #update king position
+                        new_state.castle='-' #king moved: can no longer castle
+                    found.append(((i,j,i+move[0],j+move[1]),new_state))
+    ##king casteling
+    if piece.lower()=='k':
+        if board.castle!='-':
+            # print("casteles",board)
+            if board.white:
+                if 'K' in board.castle and np.array_equal(board[7, 5:7], np.array(['', ''])):  # clear path
+                    if can_move(board, pos, (7, 5)):  # not passing through check
+                        new_state = can_move(board, pos, (7, 6))
+                        if new_state:
+                            new_state[7, 5] = 'r'
+                            new_state[7, 7] = ''
+                            new_state.castle = board.castle.replace('K', '')
+                            new_state.kings_pos = (7, 6) + kp[2:]
+                            new_state.en_passant = '-'
+                            print(board)
+                            found.append(((7,4,7,6), new_state))
+                if 'Q' in board.castle and np.array_equal(board[7, 1:4], np.array(['', '', ''])):  # clear path
+                    if can_move(board, pos, (7, 3)):  # not passing through check
+                        new_state = can_move(board, pos, (7, 2))
+                        if new_state:
+                            new_state[7, 3] = 'r'
+                            new_state[7, 0] = ''
+                            new_state.castle = board.castle.replace('Q', '')
+                            new_state.kings_pos = (7, 2) + kp[2:]
+                            new_state.en_passant = '-'
+                            print(board)
+                            found.append(((7,4,7,2), new_state))
+            else:
+                if 'k' in board.castle and np.array_equal(board[0, 5:7], np.array(['', ''])):  # clear path
+                    if can_move(board, pos, (0, 5)):  # not passing through check
+                        new_state = can_move(board, pos, (0, 6))
+                        if new_state:
+                            new_state[0, 5] = 'R'
+                            new_state[0, 7] = ''
+                            new_state.castle = board.castle.replace('k', '')
+                            new_state.kings_pos = kp[:2] + (0, 6)
+                            new_state.en_passant = '-'
+                            print(board)
+                            found.append(((0,4,0,6), new_state))
+                if 'q' in board.castle and np.array_equal(board[0, 1:4], np.array(['', '', ''])):  # clear path
+                    if can_move(board, pos, (0, 3)):  # not passing through check
+                        new_state = can_move(board, pos, (0, 2))
+                        if new_state:
+                            new_state[0, 3] = 'R'
+                            new_state[0, 0] = ''
+                            new_state.castle = board.castle.replace('q', '')
+                            new_state.kings_pos = kp[:2] + (0, 2)
+                            new_state.en_passant = '-'
+                            print(board)
+                            found.append(((0,4,0,2), new_state))
+    return found
    
-def piece_moves(board:State,pos:tuple[int,int],early_exit:bool=False)->list[any]:
-    """Returns all possible moves of a piece on the board
+def piece_moves(board:State,pos:tuple[int,int],early_exit:bool=False)->list[tuple[tuple[int,int,int,int],State]]:
+    """Returns all possible moves of a piece on the board and their corresponding new states
         use early_exit to check if a piece can make at least one move
     """
     log=Logger(False).log
     i,j=pos
     piece=board[i,j]
-    moves=[]
+    moves=None
     if piece.lower() == 'p':
         log("Pawn DFS")
         moves=Pawn_DFS(board,pos,early_exit)
     elif piece.lower() in ('r','q','b'):
-        log("Ranged DFS")
+        log("Ranged DFS",piece)
         moves=Ranged_DFS(board,pos,early_exit)
     elif piece.lower() in ('n','k'):
+        
         log("Instant DFS")
         moves=Instant_DFS(board,pos,early_exit)
+    return moves
+
+def all_moves(board:State)->list[State]:
+    moves=[]
+    for i in range(8):
+        for j in range(8):
+            if (board.white and board[i,j] in ('b','p','n','r','q','k')) or (not board.white and board[i,j] in ('B','P','N','R','Q','K')):
+                moves+=piece_moves(board,(i,j))
+                    # print("move: ",move)
+                    # print("st: ",st)
+                    # print(f"from {i2c(i,j)} to {i2c(*move)}")
+                    # new_state=State(board[:].copy(),not board.white,board.castle,board.en_passant,board.halfmove_count,board.fullmove_count+1,board.kings_pos)
+                    # new_state[i,j]=''
+                    # new_state[move]=board[i,j]
     return moves
 
 def reverse_Ranged_DFS(board:State,pos:tuple[int,int],early_exit:bool=False)->list[any]:
@@ -319,6 +457,7 @@ def reverse_Pawn_DFS(board:State,pos:tuple[int,int],early_exit:bool=False)->list
                     return True
                 found.append((i,j+k))
     else: #advance move
+        log("Pawn DFS")
         if board.board[pos]=='' and boundries(i+direction,j) and board[i+direction,j]==attacker:
             log("Pawn DFS ATTACKER 3",i2c(i+direction,j))
             if early_exit:
@@ -567,6 +706,7 @@ board_states=[str(board_state)]
 board_states_count={str(board_state):1}
 game=True
 while game:
+    break
     # piece=Piece('w',start_board)
     # board=Display(pos) if gui else None
     flag=Flags(board_state)
@@ -620,8 +760,8 @@ if __name__=="__main__":
     ])
 
     empty_board=np.array([
-        ['','','','','K','','r',''],
-        ['','','','','','','',''],
+        ['','','','','K','','',''],
+        ['','','','','','','','p'],
         ['','','','','k','','',''],
         ['','','','','','','',''],
         ['','','','','','','',''],
@@ -631,10 +771,53 @@ if __name__=="__main__":
         ])
 
 
+def count_moves_dfs(state, depth, current_depth=0):
+    if current_depth==depth:
+        return 1
+    count= 0
+    for move in all_moves(state):
+        count+=count_moves_dfs(move[1],depth,current_depth+1)
+    return count
+
+def predict_moves(board:State, n): #Tree Nodes search by depth- keyword: Perft Results
+    s0 = board
+    return count_moves_dfs(s0, n)
+
+import time
+while True:
+    t0=time.time()
     board=State(empty_board)
-    board.white=False
-    Display(board)
-    # print("check: ",check(board))
-    # print("checkmate: ",checkmate(board))
-    # print("stalemate: ",stalemate(board))
-    print(Flags(board))
+    # board.set_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
+    board.set_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1R1K b kq - 0 1")
+    display=Display(board)
+    display.update()
+    # print(len(all_moves(board)))
+    states=all_moves(board)
+    # for state in states:
+    #     lm=state[0]
+    #     display.update(state[1],(lm[0:2],lm[2:4]))
+    #     time.sleep(1)
+    # break
+    # s=0
+    # for state in states[:]:
+    #     display.update(state)
+    #     time.sleep(1)
+        
+        # time.sleep(1)
+        # for state2 in all_moves(state)[:]:
+        #     display.update(state2)
+        #     time.sleep(0.6)
+    # print(s)
+    n=2
+    move_counts = predict_moves(board, n)
+    print("Possible moves at each depth:", move_counts)
+    print(f"took {time.time()-t0:.3f} seconds")
+    break
+    # dfs_count_states(board)
+    # print(piece_moves(board,(7,2)))
+    # board.white=False
+    # Display(board)
+    # # print("check: ",check(board))
+    # # print("checkmate: ",checkmate(board))
+    # # print("stalemate: ",stalemate(board))
+    # print(Flags(board))

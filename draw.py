@@ -43,9 +43,18 @@ class Display():
         # self.highlights=[(highlights)] if type(highlights)==tuple else self.highlights
         # self.last_move=[(last_move)] if type(last_move)==tuple else self.last_move
         # self.check=[(checks)] if type(checks)==tuple else self.check
+        # self.Draw_board()
 
+    def update(self,board:State=None,last_move:tuple[tuple[int]]=None, checks:tuple[bool,bool]=None ,highlights:tuple[any]=None):
+        self.board=board if board is not None else self.board
+        self.last_move= [] if last_move is None else last_move
+        self.highlights= [] if highlights is None else highlights
+        self.update_checks(checks)
+        self.Draw_board()
 
     def update_checks(self,checks:tuple[bool,bool])->None:
+        if checks is None:
+            return None
         if checks[0]:
             self.check=[self.board.kings_pos[0:2]]
         if checks[1]:
